@@ -1,0 +1,795 @@
+// SantexGo — ma'lumotlar bazasi sxemasi
+//
+// Qoidalar:
+// - Barcha pul qiymatlari butun so'mda (Int), kasr son ishlatilmaydi.
+// - ID'lar UUID v7 (vaqt bo'yicha tartiblangan, indeks uchun qulay).
+// - Jadval va ustun nomlari bazada snake_case, kodda camelCase.
+// - Vaqtlar timestamptz'da (UTC) saqlanadi, ko'rsatishda Asia/Tashkent'ga o'giriladi.
+// - Bazadagi qo'shimcha himoya (CHECK, qisman unique indekslar) migratsiya SQL'ida.
+
+generator client {
+  provider            = "prisma-client"
+  output              = "../src/generated/prisma"
+  moduleFormat        = "esm"
+  importFileExtension = "js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─────────────────────────────── Enumlar ───────────────────────────────
+
+enum UserRole {
+  CUSTOMER
+  ADMIN
+
+  @@map("user_role")
+}
+
+enum OrderStatus {
+  RECEIVED // Buyurtma qabul qilindi
+  CONFIRMING // Tasdiqlanmoqda
+  PREPARING // Tayyorlanmoqda
+  DELIVERING // Yetkazib berilmoqda
+  DELIVERED // Yetkazildi
+  CANCELLED // Bekor qilindi
+
+  @@map("order_status")
+}
+
+enum DeliveryMethod {
+  DELIVERY // Yetkazib berish
+  PICKUP // Do'kondan olib ketish
+
+  @@map("delivery_method")
+}
+
+enum PaymentMethod {
+  CASH
+  CARD_ON_DELIVERY
+  CLICK
+  PAYME
+  UZUM
+
+  @@map("payment_method")
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+  CANCELLED
+
+  @@map("payment_status")
+}
+
+enum DiscountType {
+  PERCENT // Foizli
+  FIXED // Aniq summa
+
+  @@map("discount_type")
+}
+
+enum AttributeType {
+  NUMBER
+  TEXT
+  BOOLEAN
+
+  @@map("attribute_type")
+}
+
+enum ProductUnit {
+  PIECE // dona
+  METER // metr
+  PACK // pachka
+  SET // komplekt
+  KG
+
+  @@map("product_unit")
+}
+
+enum DocumentType {
+  CERTIFICATE // Sertifikat
+  PASSPORT // Mahsulot pasporti
+  MANUAL // Yo'riqnoma
+  OTHER
+
+  @@map("document_type")
+}
+
+enum InventoryMovementType {
+  RESTOCK // Kirim
+  ORDER_RESERVE // Buyurtma uchun band qilindi
+  ORDER_RELEASE // Bekor qilingan buyurtma bandi bo'shatildi
+  ORDER_SHIP // Buyurtma ombordan chiqdi
+  RETURN // Qaytarildi
+  ADJUSTMENT // Qo'lda tuzatish (inventarizatsiya)
+
+  @@map("inventory_movement_type")
+}
+
+// ────────────────────────── Foydalanuvchilar ──────────────────────────
+
+model User {
+  id                String    @id @default(uuid(7)) @db.Uuid
+  firstName         String    @map("first_name") @db.VarChar(60)
+  lastName          String    @map("last_name") @db.VarChar(60)
+  /// E.164 formatda: +998901234567
+  phone             String    @unique @db.VarChar(16)
+  /// argon2id xeshi; parolning o'zi hech qachon saqlanmaydi
+  passwordHash      String    @map("password_hash") @db.VarChar(255)
+  role              UserRole  @default(CUSTOMER)
+  isActive          Boolean   @default(true) @map("is_active")
+  phoneVerifiedAt   DateTime? @map("phone_verified_at") @db.Timestamptz(3)
+  passwordChangedAt DateTime? @map("password_changed_at") @db.Timestamptz(3)
+  lastLoginAt       DateTime? @map("last_login_at") @db.Timestamptz(3)
+  createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt         DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  addresses          Address[]
+  sessions           Session[]
+  cart               Cart?
+  favorites          Favorite[]
+  orders             Order[]
+  reviews            Review[]
+  orderStatusChanges OrderStatusHistory[]
+  inventoryMovements InventoryMovement[]
+  discountsCreated   Discount[]
+  auditLogs          AuditLog[]
+
+  @@index([role, createdAt])
+  @@map("users")
+}
+
+model Address {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  /// Masalan: Uy, Ish, Obyekt
+  label     String?  @db.VarChar(40)
+  region    String   @db.VarChar(80)
+  district  String   @db.VarChar(80)
+  street    String   @db.VarChar(160)
+  house     String?  @db.VarChar(20)
+  apartment String?  @db.VarChar(20)
+  /// Mo'ljal
+  landmark  String?  @db.VarChar(160)
+  latitude  Float?
+  longitude Float?
+  /// Har bir foydalanuvchida bittadan ko'p bo'lmaydi (qisman unique indeks)
+  isDefault Boolean  @default(false) @map("is_default")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  orders Order[]
+
+  @@index([userId])
+  @@map("addresses")
+}
+
+/// Login sessiyalari: refresh token xeshi bilan. Parol o'zgarsa hammasi bekor qilinadi.
+model Session {
+  id               String    @id @default(uuid(7)) @db.Uuid
+  userId           String    @map("user_id") @db.Uuid
+  refreshTokenHash String    @unique @map("refresh_token_hash") @db.VarChar(128)
+  userAgent        String?   @map("user_agent") @db.VarChar(255)
+  ipAddress        String?   @map("ip_address") @db.VarChar(45)
+  expiresAt        DateTime  @map("expires_at") @db.Timestamptz(3)
+  revokedAt        DateTime? @map("revoked_at") @db.Timestamptz(3)
+  lastUsedAt       DateTime  @default(now()) @map("last_used_at") @db.Timestamptz(3)
+  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("sessions")
+}
+
+// ─────────────────────────────── Katalog ───────────────────────────────
+
+model Brand {
+  id          String   @id @default(uuid(7)) @db.Uuid
+  name        String   @unique @db.VarChar(80)
+  slug        String   @unique @db.VarChar(100)
+  logoUrl     String?  @map("logo_url") @db.VarChar(500)
+  description String?
+  country     String?  @db.VarChar(60)
+  website     String?  @db.VarChar(255)
+  sortOrder   Int      @default(0) @map("sort_order")
+  /// Homepage'dagi "Mashhur brendlar" blokida ko'rsatiladi
+  isFeatured  Boolean  @default(false) @map("is_featured")
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  products        Product[]
+  discountTargets DiscountTarget[]
+  homeCollections HomeCollection[]
+
+  @@index([isActive, sortOrder])
+  @@map("brands")
+}
+
+/// Kategoriyalar daraxti: Fittinglar → Tirsaklar, Muftalar, Troyniklar
+model Category {
+  id          String   @id @default(uuid(7)) @db.Uuid
+  parentId    String?  @map("parent_id") @db.Uuid
+  name        String   @db.VarChar(100)
+  slug        String   @unique @db.VarChar(120)
+  description String?
+  imageUrl    String?  @map("image_url") @db.VarChar(500)
+  sortOrder   Int      @default(0) @map("sort_order")
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  parent          Category?           @relation("CategoryTree", fields: [parentId], references: [id], onDelete: Restrict)
+  children        Category[]          @relation("CategoryTree")
+  products        Product[]
+  attributes      CategoryAttribute[]
+  discountTargets DiscountTarget[]
+  homeCollections HomeCollection[]
+
+  @@index([parentId, sortOrder])
+  @@map("categories")
+}
+
+model Material {
+  id          String   @id @default(uuid(7)) @db.Uuid
+  /// Qisqa nom: PPR, PVC, PP
+  name        String   @unique @db.VarChar(40)
+  slug        String   @unique @db.VarChar(60)
+  /// To'liq nom: Polipropilen random sopolimer (PP-R)
+  fullName    String?  @map("full_name") @db.VarChar(120)
+  description String?
+  sortOrder   Int      @default(0) @map("sort_order")
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  products        Product[]
+  homeCollections HomeCollection[]
+
+  @@map("materials")
+}
+
+/// Bir modelning turli o'lchamlari (masalan: Plastherm PPR truba PN20 — Ø20, Ø25, Ø32...)
+model ProductGroup {
+  id                  String   @id @default(uuid(7)) @db.Uuid
+  name                String   @db.VarChar(200)
+  /// Guruh ichida qaysi xususiyat bo'yicha almashtiriladi (masalan: diameter_mm)
+  variantAttributeKey String?  @map("variant_attribute_key") @db.VarChar(40)
+  createdAt           DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt           DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  products Product[]
+
+  @@map("product_groups")
+}
+
+/// Har bir o'lcham — alohida mahsulot (SKU), o'z narxi va qoldig'i bilan
+model Product {
+  id                String      @id @default(uuid(7)) @db.Uuid
+  sku               String      @unique @db.VarChar(64)
+  name              String      @db.VarChar(200)
+  slug              String      @unique @db.VarChar(220)
+  brandId           String      @map("brand_id") @db.Uuid
+  categoryId        String      @map("category_id") @db.Uuid
+  materialId        String?     @map("material_id") @db.Uuid
+  groupId           String?     @map("group_id") @db.Uuid
+  shortDescription  String?     @map("short_description") @db.VarChar(300)
+  description       String?
+  unit              ProductUnit @default(PIECE)
+  /// Chegirmasiz narx (so'm)
+  basePrice         Int         @map("base_price")
+  /// Joriy sotuv narxi, chegirma hisobga olingan (so'm). Pricing moduli yangilab turadi.
+  currentPrice      Int         @map("current_price")
+  /// currentPrice'ga qo'llangan chegirma
+  appliedDiscountId String?     @map("applied_discount_id") @db.Uuid
+  minOrderQty       Int         @default(1) @map("min_order_qty")
+  weightGrams       Int?        @map("weight_grams")
+  warrantyMonths    Int?        @map("warranty_months")
+  isActive          Boolean     @default(true) @map("is_active")
+  isFeatured        Boolean     @default(false) @map("is_featured")
+  soldCount         Int         @default(0) @map("sold_count")
+  ratingAvg         Float       @default(0) @map("rating_avg")
+  ratingCount       Int         @default(0) @map("rating_count")
+  metaTitle         String?     @map("meta_title") @db.VarChar(200)
+  metaDescription   String?     @map("meta_description") @db.VarChar(320)
+  createdAt         DateTime    @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt         DateTime    @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  brand           Brand         @relation(fields: [brandId], references: [id], onDelete: Restrict)
+  category        Category      @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  material        Material?     @relation(fields: [materialId], references: [id], onDelete: SetNull)
+  group           ProductGroup? @relation(fields: [groupId], references: [id], onDelete: SetNull)
+  appliedDiscount Discount?     @relation("AppliedDiscount", fields: [appliedDiscountId], references: [id], onDelete: SetNull)
+
+  images             ProductImage[]
+  documents          ProductDocument[]
+  attributeValues    ProductAttributeValue[]
+  inventory          Inventory[]
+  inventoryMovements InventoryMovement[]
+  cartItems          CartItem[]
+  favorites          Favorite[]
+  orderItems         OrderItem[]
+  reviews            Review[]
+  discountTargets    DiscountTarget[]
+
+  @@index([brandId])
+  @@index([categoryId])
+  @@index([materialId])
+  @@index([groupId])
+  @@index([appliedDiscountId])
+  @@index([isActive, currentPrice])
+  @@index([isActive, createdAt])
+  @@index([isActive, soldCount])
+  @@map("products")
+}
+
+model ProductImage {
+  id         String   @id @default(uuid(7)) @db.Uuid
+  productId  String   @map("product_id") @db.Uuid
+  /// Saqlashdagi kalit (S3 key)
+  storageKey String   @map("storage_key") @db.VarChar(300)
+  /// Katta o'lcham
+  url        String   @db.VarChar(500)
+  mediumUrl  String?  @map("medium_url") @db.VarChar(500)
+  thumbUrl   String?  @map("thumb_url") @db.VarChar(500)
+  alt        String?  @db.VarChar(200)
+  width      Int?
+  height     Int?
+  sortOrder  Int      @default(0) @map("sort_order")
+  isMain     Boolean  @default(false) @map("is_main")
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId, sortOrder])
+  @@map("product_images")
+}
+
+/// Sertifikatlar, pasport va yo'riqnomalar (PDF)
+model ProductDocument {
+  id         String       @id @default(uuid(7)) @db.Uuid
+  productId  String       @map("product_id") @db.Uuid
+  type       DocumentType @default(CERTIFICATE)
+  title      String       @db.VarChar(200)
+  storageKey String       @map("storage_key") @db.VarChar(300)
+  url        String       @db.VarChar(500)
+  sortOrder  Int          @default(0) @map("sort_order")
+  createdAt  DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId])
+  @@map("product_documents")
+}
+
+/// Texnik xususiyatlar ta'rifi: diametr, PN, uzunlik, rezba o'lchami...
+model Attribute {
+  id           String        @id @default(uuid(7)) @db.Uuid
+  /// Kod nomi: diameter_mm, pn, length_m
+  key          String        @unique @db.VarChar(40)
+  name         String        @db.VarChar(80)
+  unit         String?       @db.VarChar(20)
+  type         AttributeType @default(NUMBER)
+  /// Katalog filtrida chiqadimi
+  isFilterable Boolean       @default(true) @map("is_filterable")
+  /// Mahsulot sahifasidagi texnik jadvalda chiqadimi
+  isVisible    Boolean       @default(true) @map("is_visible")
+  sortOrder    Int           @default(0) @map("sort_order")
+  createdAt    DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt    DateTime      @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  categories CategoryAttribute[]
+  values     ProductAttributeValue[]
+
+  @@map("attributes")
+}
+
+/// Qaysi kategoriyada qaysi xususiyatlar ishlatiladi
+model CategoryAttribute {
+  categoryId  String  @map("category_id") @db.Uuid
+  attributeId String  @map("attribute_id") @db.Uuid
+  isRequired  Boolean @default(false) @map("is_required")
+  sortOrder   Int     @default(0) @map("sort_order")
+
+  category  Category  @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  attribute Attribute @relation(fields: [attributeId], references: [id], onDelete: Cascade)
+
+  @@id([categoryId, attributeId])
+  @@index([attributeId])
+  @@map("category_attributes")
+}
+
+/// Mahsulotning xususiyat qiymati. Turiga qarab aniq bitta ustun to'ldiriladi (CHECK).
+model ProductAttributeValue {
+  productId    String   @map("product_id") @db.Uuid
+  attributeId  String   @map("attribute_id") @db.Uuid
+  numberValue  Float?   @map("number_value")
+  textValue    String?  @map("text_value") @db.VarChar(120)
+  booleanValue Boolean? @map("boolean_value")
+
+  product   Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+  attribute Attribute @relation(fields: [attributeId], references: [id], onDelete: Restrict)
+
+  @@id([productId, attributeId])
+  @@index([attributeId, numberValue])
+  @@index([attributeId, textValue])
+  @@map("product_attribute_values")
+}
+
+// ────────────────────────────── Chegirmalar ──────────────────────────────
+
+model Discount {
+  id          String       @id @default(uuid(7)) @db.Uuid
+  name        String       @db.VarChar(120)
+  type        DiscountType
+  /// PERCENT: 1–100 (foiz); FIXED: so'mdagi summa
+  value       Int
+  startsAt    DateTime     @map("starts_at") @db.Timestamptz(3)
+  /// null — muddatsiz
+  endsAt      DateTime?    @map("ends_at") @db.Timestamptz(3)
+  priority    Int          @default(0)
+  isActive    Boolean      @default(true) @map("is_active")
+  createdById String?      @map("created_by_id") @db.Uuid
+  createdAt   DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime     @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  createdBy       User?            @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  targets         DiscountTarget[]
+  appliedProducts Product[]        @relation("AppliedDiscount")
+  orderItems      OrderItem[]
+
+  @@index([isActive, startsAt, endsAt])
+  @@map("discounts")
+}
+
+/// Chegirma nimaga tegishli: mahsulot, kategoriya (ichidagi subkategoriyalar bilan) yoki brend.
+/// Har qatorda aniq bittasi to'ldiriladi (CHECK).
+model DiscountTarget {
+  id         String  @id @default(uuid(7)) @db.Uuid
+  discountId String  @map("discount_id") @db.Uuid
+  productId  String? @map("product_id") @db.Uuid
+  categoryId String? @map("category_id") @db.Uuid
+  brandId    String? @map("brand_id") @db.Uuid
+
+  discount Discount  @relation(fields: [discountId], references: [id], onDelete: Cascade)
+  product  Product?  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  category Category? @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  brand    Brand?    @relation(fields: [brandId], references: [id], onDelete: Cascade)
+
+  @@index([discountId])
+  @@index([productId])
+  @@index([categoryId])
+  @@index([brandId])
+  @@map("discount_targets")
+}
+
+// ──────────────────────────────── Ombor ────────────────────────────────
+
+model Warehouse {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  code      String   @unique @db.VarChar(20)
+  name      String   @db.VarChar(120)
+  address   String?  @db.VarChar(255)
+  /// Faqat bitta ombor asosiy bo'ladi (qisman unique indeks)
+  isDefault Boolean  @default(false) @map("is_default")
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  inventory          Inventory[]
+  inventoryMovements InventoryMovement[]
+
+  @@map("warehouses")
+}
+
+/// Mahsulot qoldig'i omborlar kesimida. Sotuvga mavjud = quantity − reserved.
+model Inventory {
+  productId         String   @map("product_id") @db.Uuid
+  warehouseId       String   @map("warehouse_id") @db.Uuid
+  /// Omborda jismonan bor
+  quantity          Int      @default(0)
+  /// Hali jo'natilmagan buyurtmalar uchun band qilingan
+  reserved          Int      @default(0)
+  /// Mavjud miqdor shundan kam bo'lsa adminga ogohlantirish chiqadi
+  lowStockThreshold Int      @default(10) @map("low_stock_threshold")
+  updatedAt         DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  product   Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+  warehouse Warehouse @relation(fields: [warehouseId], references: [id], onDelete: Restrict)
+
+  @@id([productId, warehouseId])
+  @@index([warehouseId])
+  @@map("inventory")
+}
+
+/// Ombordagi har bir o'zgarish tarixi (kim, qachon, nima uchun)
+model InventoryMovement {
+  id             String                @id @default(uuid(7)) @db.Uuid
+  productId      String                @map("product_id") @db.Uuid
+  warehouseId    String                @map("warehouse_id") @db.Uuid
+  type           InventoryMovementType
+  /// quantity ustuniga ta'siri (+ kirim, − chiqim)
+  quantityChange Int                   @map("quantity_change")
+  /// reserved ustuniga ta'siri
+  reservedChange Int                   @default(0) @map("reserved_change")
+  /// Harakatdan keyingi qoldiq
+  quantityAfter  Int                   @map("quantity_after")
+  reservedAfter  Int                   @map("reserved_after")
+  orderId        String?               @map("order_id") @db.Uuid
+  note           String?               @db.VarChar(300)
+  createdById    String?               @map("created_by_id") @db.Uuid
+  createdAt      DateTime              @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  product   Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+  warehouse Warehouse @relation(fields: [warehouseId], references: [id], onDelete: Restrict)
+  order     Order?    @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  createdBy User?     @relation(fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@index([productId, createdAt])
+  @@index([warehouseId, createdAt])
+  @@index([orderId])
+  @@map("inventory_movements")
+}
+
+// ─────────────────────── Savatcha va sevimlilar ───────────────────────
+
+model Cart {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  userId    String   @unique @map("user_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  user  User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items CartItem[]
+
+  @@map("carts")
+}
+
+model CartItem {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  cartId    String   @map("cart_id") @db.Uuid
+  productId String   @map("product_id") @db.Uuid
+  quantity  Int
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  cart    Cart    @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([cartId, productId])
+  @@index([productId])
+  @@map("cart_items")
+}
+
+model Favorite {
+  userId    String   @map("user_id") @db.Uuid
+  productId String   @map("product_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@id([userId, productId])
+  @@index([productId])
+  @@map("favorites")
+}
+
+// ────────────────────────────── Buyurtmalar ──────────────────────────────
+
+model Order {
+  id                String         @id @default(uuid(7)) @db.Uuid
+  /// Ko'rinadigan raqam: ORDER-10001 dan boshlab ketma-ket
+  orderNumber       Int            @unique @default(autoincrement()) @map("order_number")
+  userId            String         @map("user_id") @db.Uuid
+  status            OrderStatus    @default(RECEIVED)
+  /// Mijoz ma'lumotlari buyurtma vaqtidagi holatda saqlanadi
+  customerFirstName String         @map("customer_first_name") @db.VarChar(60)
+  customerLastName  String         @map("customer_last_name") @db.VarChar(60)
+  customerPhone     String         @map("customer_phone") @db.VarChar(16)
+  deliveryMethod    DeliveryMethod @default(DELIVERY) @map("delivery_method")
+  addressId         String?        @map("address_id") @db.Uuid
+  deliveryRegion    String?        @map("delivery_region") @db.VarChar(80)
+  deliveryDistrict  String?        @map("delivery_district") @db.VarChar(80)
+  deliveryStreet    String?        @map("delivery_street") @db.VarChar(160)
+  deliveryHouse     String?        @map("delivery_house") @db.VarChar(20)
+  deliveryApartment String?        @map("delivery_apartment") @db.VarChar(20)
+  deliveryLandmark  String?        @map("delivery_landmark") @db.VarChar(160)
+  comment           String?        @db.VarChar(500)
+  paymentMethod     PaymentMethod  @map("payment_method")
+  paymentStatus     PaymentStatus  @default(PENDING) @map("payment_status")
+  /// Chegirmasiz narxlar yig'indisi (so'm)
+  subtotal          Int
+  discountTotal     Int            @default(0) @map("discount_total")
+  deliveryFee       Int            @default(0) @map("delivery_fee")
+  /// subtotal − discountTotal + deliveryFee (CHECK bilan kafolatlangan)
+  total             Int
+  itemsCount        Int            @map("items_count")
+  confirmedAt       DateTime?      @map("confirmed_at") @db.Timestamptz(3)
+  shippedAt         DateTime?      @map("shipped_at") @db.Timestamptz(3)
+  deliveredAt       DateTime?      @map("delivered_at") @db.Timestamptz(3)
+  cancelledAt       DateTime?      @map("cancelled_at") @db.Timestamptz(3)
+  cancelReason      String?        @map("cancel_reason") @db.VarChar(300)
+  createdAt         DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt         DateTime       @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  user               User                 @relation(fields: [userId], references: [id], onDelete: Restrict)
+  address            Address?             @relation(fields: [addressId], references: [id], onDelete: SetNull)
+  items              OrderItem[]
+  statusHistory      OrderStatusHistory[]
+  payments           Payment[]
+  inventoryMovements InventoryMovement[]
+  reviews            Review[]
+
+  @@index([userId, createdAt])
+  @@index([status, createdAt])
+  @@index([createdAt])
+  @@map("orders")
+}
+
+/// Buyurtmadagi mahsulot. Nom, SKU va narx buyurtma vaqtidagidek "muzlatiladi".
+model OrderItem {
+  id             String      @id @default(uuid(7)) @db.Uuid
+  orderId        String      @map("order_id") @db.Uuid
+  productId      String      @map("product_id") @db.Uuid
+  discountId     String?     @map("discount_id") @db.Uuid
+  sku            String      @db.VarChar(64)
+  name           String      @db.VarChar(200)
+  brandName      String      @map("brand_name") @db.VarChar(80)
+  imageUrl       String?     @map("image_url") @db.VarChar(500)
+  unit           ProductUnit
+  /// 1 birlik narxi, chegirmasiz (so'm)
+  unitPrice      Int         @map("unit_price")
+  /// 1 birlik uchun chegirma (so'm)
+  discountAmount Int         @default(0) @map("discount_amount")
+  finalUnitPrice Int         @map("final_unit_price")
+  quantity       Int
+  lineTotal      Int         @map("line_total")
+
+  order    Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product  Product   @relation(fields: [productId], references: [id], onDelete: Restrict)
+  discount Discount? @relation(fields: [discountId], references: [id], onDelete: SetNull)
+
+  @@index([orderId])
+  @@index([productId])
+  @@map("order_items")
+}
+
+model OrderStatusHistory {
+  id          String       @id @default(uuid(7)) @db.Uuid
+  orderId     String       @map("order_id") @db.Uuid
+  fromStatus  OrderStatus? @map("from_status")
+  toStatus    OrderStatus  @map("to_status")
+  note        String?      @db.VarChar(300)
+  /// Statusni o'zgartirgan foydalanuvchi (admin yoki mijozning o'zi)
+  changedById String?      @map("changed_by_id") @db.Uuid
+  createdAt   DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  order     Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  changedBy User? @relation(fields: [changedById], references: [id], onDelete: SetNull)
+
+  @@index([orderId, createdAt])
+  @@map("order_status_history")
+}
+
+model Payment {
+  id         String        @id @default(uuid(7)) @db.Uuid
+  orderId    String        @map("order_id") @db.Uuid
+  method     PaymentMethod
+  amount     Int
+  status     PaymentStatus @default(PENDING)
+  /// To'lov tizimidagi tranzaksiya ID (Click/Payme/Uzum)
+  externalId String?       @map("external_id") @db.VarChar(128)
+  /// To'lov tizimi javobi (audit uchun)
+  payload    Json?
+  paidAt     DateTime?     @map("paid_at") @db.Timestamptz(3)
+  createdAt  DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt  DateTime      @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Restrict)
+
+  @@unique([method, externalId])
+  @@index([orderId])
+  @@map("payments")
+}
+
+model Review {
+  id         String   @id @default(uuid(7)) @db.Uuid
+  productId  String   @map("product_id") @db.Uuid
+  userId     String   @map("user_id") @db.Uuid
+  orderId    String?  @map("order_id") @db.Uuid
+  /// 1–5 (CHECK)
+  rating     Int      @db.SmallInt
+  text       String?  @db.VarChar(2000)
+  /// Admin tasdiqlagandan keyin saytda ko'rinadi
+  isApproved Boolean  @default(false) @map("is_approved")
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt  DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  order   Order?  @relation(fields: [orderId], references: [id], onDelete: SetNull)
+
+  @@unique([productId, userId])
+  @@index([productId, isApproved, createdAt])
+  @@map("reviews")
+}
+
+// ─────────────────────── Sayt kontenti va tizim ───────────────────────
+
+/// Homepage slayderi
+model Banner {
+  id             String    @id @default(uuid(7)) @db.Uuid
+  title          String?   @db.VarChar(120)
+  subtitle       String?   @db.VarChar(200)
+  imageUrl       String    @map("image_url") @db.VarChar(500)
+  mobileImageUrl String?   @map("mobile_image_url") @db.VarChar(500)
+  linkUrl        String?   @map("link_url") @db.VarChar(500)
+  sortOrder      Int       @default(0) @map("sort_order")
+  isActive       Boolean   @default(true) @map("is_active")
+  startsAt       DateTime? @map("starts_at") @db.Timestamptz(3)
+  endsAt         DateTime? @map("ends_at") @db.Timestamptz(3)
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@index([isActive, sortOrder])
+  @@map("banners")
+}
+
+/// Homepage'dagi "Material bo'yicha" tugmalari. Har biri tayyor filtr:
+/// masalan "PPR TRUBA" = material PPR + kategoriya Trubalar.
+model HomeCollection {
+  id         String   @id @default(uuid(7)) @db.Uuid
+  title      String   @db.VarChar(60)
+  slug       String   @unique @db.VarChar(80)
+  imageUrl   String?  @map("image_url") @db.VarChar(500)
+  materialId String?  @map("material_id") @db.Uuid
+  categoryId String?  @map("category_id") @db.Uuid
+  brandId    String?  @map("brand_id") @db.Uuid
+  sortOrder  Int      @default(0) @map("sort_order")
+  isActive   Boolean  @default(true) @map("is_active")
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt  DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  material Material? @relation(fields: [materialId], references: [id], onDelete: Cascade)
+  category Category? @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  brand    Brand?    @relation(fields: [brandId], references: [id], onDelete: Cascade)
+
+  @@index([isActive, sortOrder])
+  @@map("home_collections")
+}
+
+/// Sayt sozlamalari: yetkazib berish narxi, do'kon ma'lumotlari va h.k.
+model Setting {
+  key       String   @id @db.VarChar(80)
+  value     Json
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@map("settings")
+}
+
+/// Admin amallari jurnali: kim, qachon, nimani o'zgartirdi
+model AuditLog {
+  id         String   @id @default(uuid(7)) @db.Uuid
+  actorId    String?  @map("actor_id") @db.Uuid
+  /// Masalan: product.update, order.status_change
+  action     String   @db.VarChar(60)
+  entityType String   @map("entity_type") @db.VarChar(40)
+  entityId   String?  @map("entity_id") @db.VarChar(64)
+  changes    Json?
+  ipAddress  String?  @map("ip_address") @db.VarChar(45)
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  actor User? @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([entityType, entityId])
+  @@index([actorId, createdAt])
+  @@index([createdAt])
+  @@map("audit_logs")
+}

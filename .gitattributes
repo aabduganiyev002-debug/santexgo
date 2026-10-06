@@ -1,0 +1,13 @@
+# Barcha matnli fayllar har qanday tizimda (Windows ham) LF qator oxiri bilan saqlanadi.
+# Aks holda Windows'da kod formati tekshiruvi va Docker skriptlari buziladi.
+* text=auto eol=lf
+
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.webp binary
+*.gif binary
+*.ico binary
+*.pdf binary
+*.woff binary
+*.woff2 binary

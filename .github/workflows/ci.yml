@@ -1,0 +1,175 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  TURBO_TELEMETRY_DISABLED: 1
+
+jobs:
+  check:
+    name: Lint, test, build va migratsiyalar
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: santexgo
+          POSTGRES_USER: santexgo
+          POSTGRES_PASSWORD: santexgo_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U santexgo -d santexgo"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: postgresql://santexgo:santexgo_ci@localhost:5432/santexgo
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Kod formati
+        run: pnpm format:check
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Tiplar
+        run: pnpm typecheck
+
+      - name: Testlar
+        run: pnpm test
+
+      - name: Build
+        run: pnpm build
+
+      - name: Migratsiyalarni toza bazaga qo'llash
+        run: pnpm db:deploy
+
+      - name: Baza sxemaga to'liq mosligini tekshirish
+        working-directory: apps/api
+        run: pnpm exec prisma migrate diff --from-config-datasource --to-schema prisma/schema.prisma --exit-code
+
+      - name: Seed (ikki marta — qayta ishga tushirish xavfsizligi)
+        env:
+          ADMIN_PHONE: '+998901234567'
+          ADMIN_PASSWORD: ci-admin-password-123
+        run: pnpm db:seed && pnpm db:seed
+
+  # Foydalanuvchi kompyuteridagi kabi: toza nusxa → "pnpm setup:local" (Docker bilan) → API
+  local-setup:
+    name: pnpm setup:local (Linux, Docker bilan)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: Birinchi ishga tushirish
+        run: pnpm setup:local
+
+      - name: Qayta ishga tushirish (xavfsizligi)
+        run: pnpm setup:local
+
+      - name: Barcha xizmatlar javob beradi
+        run: |
+          docker compose --env-file .env -f docker/docker-compose.yml ps
+          curl -sf http://127.0.0.1:7700/health
+          docker compose --env-file .env -f docker/docker-compose.yml exec -T redis \
+            sh -c 'redis-cli -a "$REDIS_PASSWORD" --no-auth-warning ping' | grep -q PONG
+          code=$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8333/)
+          echo "S3 javobi: HTTP $code"
+          test "$code" != "000"
+
+      - name: API ishga tushadi va bazaga ulanadi
+        run: |
+          pnpm --filter @santexgo/api build
+          cd apps/api
+          node dist/main.js > api.log 2>&1 &
+          for i in $(seq 1 30); do
+            if curl -sf http://127.0.0.1:4000/api/health; then exit 0; fi
+            sleep 2
+          done
+          cat api.log
+          exit 1
+
+      - name: Xizmatlar loglari (xato bo'lsa)
+        if: failure()
+        run: docker compose --env-file .env -f docker/docker-compose.yml logs --tail 50
+
+  # Windows'da (Docker'siz): o'rnatish, kod formati (qator oxirlari), migratsiya, seed va API
+  windows:
+    name: pnpm setup:local (Windows)
+    runs-on: windows-latest
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: PostgreSQL'ni ishga tushirish (runner'da oldindan o'rnatilgan)
+        shell: pwsh
+        env:
+          PGPASSWORD: root
+        run: |
+          $pgService = Get-Service -Name postgresql*
+          Set-Service -InputObject $pgService -Status running -StartupType automatic
+          Start-Process -FilePath "$env:PGBIN\pg_isready" -Wait -PassThru
+          & "$env:PGBIN\psql" -U postgres -c "CREATE USER santexgo WITH PASSWORD 'santexgo_ci' CREATEDB;"
+          & "$env:PGBIN\psql" -U postgres -c "CREATE DATABASE santexgo OWNER santexgo;"
+
+      - name: .env (Windows Bloknotidagi kabi CRLF qator oxirlari bilan)
+        shell: pwsh
+        run: (Get-Content .env.example) -replace '^POSTGRES_PASSWORD=.*', 'POSTGRES_PASSWORD=santexgo_ci' | Set-Content .env
+
+      - name: pnpm setup:local --no-docker
+        run: pnpm setup:local --no-docker
+
+      - name: Kod formati, lint, tiplar va testlar
+        run: pnpm check
+
+      - name: API ishga tushadi va bazaga ulanadi
+        shell: pwsh
+        run: |
+          pnpm --filter @santexgo/api build
+          $api = Start-Process node -ArgumentList 'dist/main.js' -WorkingDirectory apps/api -PassThru `
+            -RedirectStandardOutput api.out.log -RedirectStandardError api.err.log
+          for ($i = 0; $i -lt 30; $i++) {
+            try { Invoke-RestMethod http://127.0.0.1:4000/api/health; exit 0 } catch { Start-Sleep 2 }
+          }
+          Get-Content api.out.log, api.err.log
+          exit 1

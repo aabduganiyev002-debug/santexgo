@@ -1,0 +1,83 @@
+# SantexGo — lokal ishlab chiqish uchun infratuzilma.
+# Ishga tushirish (loyiha ildizidan): pnpm infra:up
+# Barcha portlar faqat 127.0.0.1 ga ochiladi — tashqi tarmoqdan ko'rinmaydi.
+
+name: santexgo
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-santexgo}
+      POSTGRES_USER: ${POSTGRES_USER:-santexgo}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD .env faylida berilishi shart}
+    ports:
+      - '127.0.0.1:${POSTGRES_PORT:-5432}:5432'
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:8-alpine
+    restart: unless-stopped
+    command:
+      - redis-server
+      - --appendonly
+      - 'yes'
+      - --requirepass
+      - ${REDIS_PASSWORD:?REDIS_PASSWORD .env faylida berilishi shart}
+    ports:
+      - '127.0.0.1:${REDIS_PORT:-6379}:6379'
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ['CMD-SHELL', 'redis-cli -a "$${REDIS_PASSWORD}" --no-auth-warning ping | grep -q PONG']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+
+  meilisearch:
+    image: getmeili/meilisearch:v1.54
+    restart: unless-stopped
+    environment:
+      MEILI_ENV: development
+      MEILI_MASTER_KEY: ${MEILI_MASTER_KEY:?MEILI_MASTER_KEY .env faylida berilishi shart}
+      MEILI_NO_ANALYTICS: 'true'
+    ports:
+      - '127.0.0.1:${MEILI_PORT:-7700}:7700'
+    volumes:
+      - meili_data:/meili_data
+    healthcheck:
+      test:
+        [
+          'CMD-SHELL',
+          'curl -sf http://localhost:7700/health || wget -qO- http://localhost:7700/health',
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  # S3-mos fayl saqlash (mahsulot rasmlari). Production'da Cloudflare R2 yoki boshqa S3 ishlatiladi.
+  # MinIO bepul Docker image'larini to'xtatgani uchun lokal muhitda SeaweedFS ishlatiladi.
+  seaweedfs:
+    image: chrislusf/seaweedfs:4.48
+    restart: unless-stopped
+    command: server -dir=/data -s3 -s3.port=8333 -s3.config=/etc/seaweedfs/s3.json
+    ports:
+      - '127.0.0.1:${S3_PORT:-8333}:8333'
+    volumes:
+      - seaweedfs_data:/data
+      - ./seaweedfs/s3.json:/etc/seaweedfs/s3.json:ro
+
+volumes:
+  postgres_data:
+  redis_data:
+  meili_data:
+  seaweedfs_data:

@@ -1,0 +1,21 @@
+# Bog'liqliklar
+node_modules/
+
+# Build natijalari
+dist/
+.next/
+.turbo/
+coverage/
+*.tsbuildinfo
+
+# Prisma tomonidan generatsiya qilinadigan client
+apps/api/src/generated/
+
+# Maxfiy sozlamalar
+.env
+.env.*
+!.env.example
+
+# Tizim va loglar
+.DS_Store
+*.log

@@ -1,0 +1,13 @@
+packages:
+  - apps/*
+  - packages/*
+
+# Faqat shu paketlarga o'rnatish skriptlarini ishga tushirishga ruxsat beriladi
+onlyBuiltDependencies:
+  - '@prisma/engines'
+  - prisma
+  - esbuild
+
+# Telemetriya skriptlari ishga tushirilmaydi
+ignoredBuiltDependencies:
+  - '@scarf/scarf'
