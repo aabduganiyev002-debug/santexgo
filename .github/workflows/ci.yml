@@ -133,6 +133,7 @@ jobs:
           curl -sf 'http://127.0.0.1:3000/catalog/trubalar?material=ppr' | grep -q 'PPR'
           curl -sf http://127.0.0.1:3000/products/plastherm-ppr-truba-d25-pn20-4-m | grep -q 'PLT-PPR-PN20-25'
           curl -sf http://127.0.0.1:3000/api/v1/catalog/brands | grep -q 'plastherm'
+          curl -sf http://127.0.0.1:3000/cart | grep -q 'Savatcha'
           code=$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:3000/products/mavjud-emas)
           test "$code" = "404" || { cat web.log; exit 1; }
 

@@ -84,3 +84,12 @@
     padding-bottom: 0;
   }
 }
+
+@keyframes nav-progress {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(300%);
+  }
+}

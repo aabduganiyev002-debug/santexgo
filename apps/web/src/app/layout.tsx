@@ -5,6 +5,7 @@ import { CartSync } from '@/components/cart/cart-sync';
 import { Footer } from '@/components/layout/footer';
 import { Header } from '@/components/layout/header';
 import { MobileNav } from '@/components/layout/mobile-nav';
+import { NavigationProgress } from '@/components/layout/navigation-progress';
 import { Toaster } from '@/components/layout/toaster';
 import { SITE_DESCRIPTION, SITE_NAME, SITE_URL } from '@/lib/config';
 import { getLayoutData } from '@/lib/site-data';
@@ -42,6 +43,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
     <html lang="uz">
       <body className="flex min-h-dvh flex-col">
         <Providers>
+          <NavigationProgress />
           <a
             href="#main"
             className="sr-only z-50 rounded-lg bg-white px-4 py-2 focus:not-sr-only focus:fixed focus:left-4 focus:top-4"
