@@ -1,5 +1,5 @@
 import { forwardRef, type InputHTMLAttributes, type ReactNode, useId } from 'react';
-import { cn } from '@/lib/cn';
+import { cn } from './cn';
 
 export const inputClass = (invalid?: boolean, extra?: string) =>
   cn(

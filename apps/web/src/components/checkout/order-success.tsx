@@ -10,13 +10,13 @@ import { useQuery } from '@tanstack/react-query';
 import { CheckCircle2, Copy, Phone } from 'lucide-react';
 import Link from 'next/link';
 import { OrderStatusBadge } from '@/components/orders/order-status-badge';
-import { Alert } from '@/components/ui/alert';
-import { buttonClass } from '@/components/ui/button';
-import { Skeleton } from '@/components/ui/skeleton';
-import { api } from '@/lib/api/client';
-import { errorMessage } from '@/lib/api/errors';
-import { formatDateTime, formatSom } from '@/lib/format';
-import { toast } from '@/lib/stores/toast';
+import { Alert } from '@santexgo/ui/alert';
+import { buttonClass } from '@santexgo/ui/button';
+import { Skeleton } from '@santexgo/ui/skeleton';
+import { api } from '@santexgo/ui/api-client';
+import { errorMessage } from '@santexgo/ui/api-errors';
+import { formatDateTime, formatSom } from '@santexgo/ui/format';
+import { toast } from '@santexgo/ui/toast';
 
 /** "Buyurtmangiz qabul qilindi": raqam (ORDER-10254), tarkib, summa va keyingi qadam. */
 export function OrderSuccess({

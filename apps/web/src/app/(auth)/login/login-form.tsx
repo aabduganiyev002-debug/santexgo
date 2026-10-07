@@ -7,13 +7,13 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { AuthCard } from '@/components/auth/auth-card';
-import { PasswordInput } from '@/components/auth/password-input';
-import { PhoneInput } from '@/components/auth/phone-input';
-import { Alert } from '@/components/ui/alert';
-import { Button } from '@/components/ui/button';
-import { api } from '@/lib/api/client';
-import { safeNextPath, useSetSession } from '@/lib/auth';
-import { applyApiErrors } from '@/lib/form-errors';
+import { PasswordInput } from '@santexgo/ui/password-input';
+import { PhoneInput } from '@santexgo/ui/phone-input';
+import { Alert } from '@santexgo/ui/alert';
+import { Button } from '@santexgo/ui/button';
+import { api } from '@santexgo/ui/api-client';
+import { safeNextPath, useSetSession } from '@santexgo/ui/auth';
+import { applyApiErrors } from '@santexgo/ui/form-errors';
 
 export function LoginForm() {
   const router = useRouter();

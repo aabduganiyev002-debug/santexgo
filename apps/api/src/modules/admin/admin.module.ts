@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { AuthModule } from '../auth/auth.module.js';
 import { AdminBrandsController } from './catalog/admin-brands.controller.js';
 import { AdminBrandsService } from './catalog/admin-brands.service.js';
 import { AdminCategoriesController } from './catalog/admin-categories.controller.js';
@@ -14,6 +15,8 @@ import {
 import { AdminTaxonomyService } from './catalog/admin-taxonomy.service.js';
 import { AdminContentController } from './content/admin-content.controller.js';
 import { AdminContentService } from './content/admin-content.service.js';
+import { AdminCustomersController } from './customers/admin-customers.controller.js';
+import { AdminCustomersService } from './customers/admin-customers.service.js';
 import { AdminDiscountsController } from './discounts/admin-discounts.controller.js';
 import { AdminDiscountsService } from './discounts/admin-discounts.service.js';
 import { AdminOrdersController } from './orders/admin-orders.controller.js';
@@ -21,6 +24,7 @@ import { AdminOrdersService } from './orders/admin-orders.service.js';
 
 /** Admin panel API'lari: barchasi /api/v1/admin/... va faqat ADMIN roli uchun. */
 @Module({
+  imports: [AuthModule],
   controllers: [
     AdminBrandsController,
     AdminCategoriesController,
@@ -32,6 +36,7 @@ import { AdminOrdersService } from './orders/admin-orders.service.js';
     AdminDiscountsController,
     AdminContentController,
     AdminOrdersController,
+    AdminCustomersController,
   ],
   providers: [
     AdminBrandsService,
@@ -41,6 +46,7 @@ import { AdminOrdersService } from './orders/admin-orders.service.js';
     AdminDiscountsService,
     AdminContentService,
     AdminOrdersService,
+    AdminCustomersService,
   ],
 })
 export class AdminModule {}

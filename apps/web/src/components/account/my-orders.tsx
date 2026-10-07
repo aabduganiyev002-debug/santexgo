@@ -6,12 +6,12 @@ import { Package } from 'lucide-react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { OrderCard } from '@/components/orders/order-card';
-import { Alert } from '@/components/ui/alert';
-import { Button, buttonClass } from '@/components/ui/button';
-import { Skeleton } from '@/components/ui/skeleton';
-import { api } from '@/lib/api/client';
-import { errorMessage } from '@/lib/api/errors';
-import { cn } from '@/lib/cn';
+import { Alert } from '@santexgo/ui/alert';
+import { Button, buttonClass } from '@santexgo/ui/button';
+import { Skeleton } from '@santexgo/ui/skeleton';
+import { api } from '@santexgo/ui/api-client';
+import { errorMessage } from '@santexgo/ui/api-errors';
+import { cn } from '@santexgo/ui/cn';
 
 const TABS = [
   { value: 'all', label: 'Barchasi' },

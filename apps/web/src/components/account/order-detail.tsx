@@ -15,16 +15,16 @@ import { useRouter } from 'next/navigation';
 import { type ReactNode, useState } from 'react';
 import { OrderStatusBadge } from '@/components/orders/order-status-badge';
 import { OrderTimeline } from '@/components/orders/order-timeline';
-import { Alert } from '@/components/ui/alert';
-import { Button } from '@/components/ui/button';
-import { inputClass } from '@/components/ui/field';
-import { Modal } from '@/components/ui/modal';
-import { Skeleton } from '@/components/ui/skeleton';
-import { api } from '@/lib/api/client';
-import { errorMessage } from '@/lib/api/errors';
-import { formatDateTime, formatSom, unitLabel } from '@/lib/format';
+import { Alert } from '@santexgo/ui/alert';
+import { Button } from '@santexgo/ui/button';
+import { inputClass } from '@santexgo/ui/field';
+import { Modal } from '@santexgo/ui/modal';
+import { Skeleton } from '@santexgo/ui/skeleton';
+import { api } from '@santexgo/ui/api-client';
+import { errorMessage } from '@santexgo/ui/api-errors';
+import { formatDateTime, formatSom, unitLabel } from '@santexgo/ui/format';
 import { lineFromView, useCart } from '@/lib/stores/cart';
-import { toast } from '@/lib/stores/toast';
+import { toast } from '@santexgo/ui/toast';
 
 /** Buyurtma tafsiloti: holat bosqichlari, mahsulotlar, manzil, to'lov, bekor qilish, qayta buyurtma. */
 export function OrderDetail({ number }: { number: string }) {

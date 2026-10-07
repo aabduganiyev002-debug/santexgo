@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { buttonClass } from '@/components/ui/button';
+import { buttonClass } from '@santexgo/ui/button';
 
 export default function NotFound() {
   return (

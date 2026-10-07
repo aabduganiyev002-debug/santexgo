@@ -2,7 +2,7 @@
 
 import { SlidersHorizontal, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
-import { Button } from '@/components/ui/button';
+import { Button } from '@santexgo/ui/button';
 import { FilterPanel, type FilterPanelProps } from './filter-panel';
 
 /** Telefonda: "Filtrlar" tugmasi — pastdan ochiladigan to'liq ekranli oyna. */

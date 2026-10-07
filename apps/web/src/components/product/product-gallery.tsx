@@ -2,7 +2,7 @@
 
 import type { ImageUrls } from '@santexgo/shared';
 import { useState } from 'react';
-import { cn } from '@/lib/cn';
+import { cn } from '@santexgo/ui/cn';
 import { ProductImage } from './product-image';
 
 /** Mahsulot rasmlari: katta rasm va kichik rasmlar ro'yxati. */

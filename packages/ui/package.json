@@ -1,0 +1,53 @@
+{
+  "name": "@santexgo/ui",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Sayt va admin panel uchun umumiy UI komponentlar, API klient va dizayn tokenlari",
+  "type": "module",
+  "exports": {
+    "./theme.css": "./src/theme.css",
+    "./alert": "./src/alert.tsx",
+    "./api-client": "./src/api-client.ts",
+    "./api-errors": "./src/api-errors.ts",
+    "./auth": "./src/auth.ts",
+    "./badge": "./src/badge.tsx",
+    "./button": "./src/button.tsx",
+    "./cn": "./src/cn.ts",
+    "./field": "./src/field.tsx",
+    "./form-errors": "./src/form-errors.ts",
+    "./format": "./src/format.ts",
+    "./modal": "./src/modal.tsx",
+    "./password-input": "./src/password-input.tsx",
+    "./phone-input": "./src/phone-input.tsx",
+    "./skeleton": "./src/skeleton.tsx",
+    "./toast": "./src/toast.ts",
+    "./toaster": "./src/toaster.tsx",
+    "./use-is-client": "./src/use-is-client.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@santexgo/shared": "workspace:*",
+    "clsx": "2.1.1",
+    "lucide-react": "1.52.0",
+    "zustand": "5.0.15"
+  },
+  "peerDependencies": {
+    "@tanstack/react-query": "5.104.1",
+    "next": "16.4.0",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "react-hook-form": "7.89.0"
+  },
+  "devDependencies": {
+    "@tanstack/react-query": "5.104.1",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "next": "16.4.0",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "react-hook-form": "7.89.0",
+    "typescript": "6.0.3"
+  }
+}

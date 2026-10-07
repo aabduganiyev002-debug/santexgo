@@ -4,7 +4,7 @@ import type { BannerInfo } from '@santexgo/shared';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import Link from 'next/link';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { cn } from '@/lib/cn';
+import { cn } from '@santexgo/ui/cn';
 
 const AUTOPLAY_MS = 6000;
 

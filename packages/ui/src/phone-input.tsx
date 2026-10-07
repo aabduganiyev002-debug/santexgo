@@ -1,7 +1,7 @@
 'use client';
 
 import { type Control, Controller, type FieldValues, type Path } from 'react-hook-form';
-import { Field } from '@/components/ui/field';
+import { Field } from './field';
 
 /** "901234567" → "90 123 45 67" (+998 alohida ko'rsatiladi). */
 export function formatPhoneInput(value: string): string {

@@ -3,9 +3,9 @@
 import type { CartView, DeliveryMethod } from '@santexgo/shared';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { useEffect, useMemo, useState } from 'react';
-import { api } from './api/client';
+import { api } from '@santexgo/ui/api-client';
 import { useCart } from './stores/cart';
-import { useIsClient } from './use-is-client';
+import { useIsClient } from '@santexgo/ui/use-is-client';
 
 function useDebounced<T>(value: T, delay: number): T {
   const [debounced, setDebounced] = useState(value);

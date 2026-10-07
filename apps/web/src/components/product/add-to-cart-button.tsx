@@ -3,9 +3,9 @@
 import type { ProductCard } from '@santexgo/shared';
 import { Check, ShoppingCart } from 'lucide-react';
 import { useState } from 'react';
-import { Button } from '@/components/ui/button';
+import { Button } from '@santexgo/ui/button';
 import { useCart } from '@/lib/stores/cart';
-import { toast } from '@/lib/stores/toast';
+import { toast } from '@santexgo/ui/toast';
 
 /** Kartochkadagi "Savatchaga" tugmasi (eng kam buyurtma miqdori bilan qo'shadi). */
 export function AddToCartButton({ product, compact }: { product: ProductCard; compact?: boolean }) {

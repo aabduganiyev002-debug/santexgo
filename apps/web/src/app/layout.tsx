@@ -6,7 +6,7 @@ import { Footer } from '@/components/layout/footer';
 import { Header } from '@/components/layout/header';
 import { MobileNav } from '@/components/layout/mobile-nav';
 import { NavigationProgress } from '@/components/layout/navigation-progress';
-import { Toaster } from '@/components/layout/toaster';
+import { Toaster } from '@santexgo/ui/toaster';
 import { SITE_DESCRIPTION, SITE_NAME, SITE_URL } from '@/lib/config';
 import { getLayoutData } from '@/lib/site-data';
 import './globals.css';

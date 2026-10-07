@@ -1,8 +1,8 @@
 import type { CartSummary } from '@santexgo/shared';
 import { Truck } from 'lucide-react';
 import type { ReactNode } from 'react';
-import { cn } from '@/lib/cn';
-import { formatSom } from '@/lib/format';
+import { cn } from '@santexgo/ui/cn';
+import { formatSom } from '@santexgo/ui/format';
 
 /** Savatcha va checkout'dagi hisob: mahsulotlar, chegirma, yetkazib berish, jami. */
 export function OrderSummary({

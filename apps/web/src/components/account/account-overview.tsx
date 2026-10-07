@@ -6,12 +6,12 @@ import { ChevronRight, Heart, MapPin, Package, Wallet } from 'lucide-react';
 import Link from 'next/link';
 import type { ReactNode } from 'react';
 import { OrderCard } from '@/components/orders/order-card';
-import { Alert } from '@/components/ui/alert';
-import { buttonClass } from '@/components/ui/button';
-import { Skeleton } from '@/components/ui/skeleton';
-import { api } from '@/lib/api/client';
-import { errorMessage } from '@/lib/api/errors';
-import { formatDate, formatSom } from '@/lib/format';
+import { Alert } from '@santexgo/ui/alert';
+import { buttonClass } from '@santexgo/ui/button';
+import { Skeleton } from '@santexgo/ui/skeleton';
+import { api } from '@santexgo/ui/api-client';
+import { errorMessage } from '@santexgo/ui/api-errors';
+import { formatDate, formatSom } from '@santexgo/ui/format';
 
 export const OVERVIEW_KEY = ['account', 'overview'] as const;
 

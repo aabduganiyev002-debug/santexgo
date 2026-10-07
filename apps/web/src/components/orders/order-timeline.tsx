@@ -5,8 +5,8 @@ import {
   type OrderStatus,
 } from '@santexgo/shared';
 import { Check, XCircle } from 'lucide-react';
-import { cn } from '@/lib/cn';
-import { formatDateTime } from '@/lib/format';
+import { cn } from '@santexgo/ui/cn';
+import { formatDateTime } from '@santexgo/ui/format';
 
 /**
  * Buyurtma bosqichlari: o'tilganlari belgilangan, joriysi ajratilgan, vaqti ko'rsatilgan.

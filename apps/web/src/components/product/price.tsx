@@ -1,7 +1,7 @@
 import type { PriceInfo, ProductUnit } from '@santexgo/shared';
-import { Badge } from '@/components/ui/badge';
-import { cn } from '@/lib/cn';
-import { formatSom, unitLabel } from '@/lib/format';
+import { Badge } from '@santexgo/ui/badge';
+import { cn } from '@santexgo/ui/cn';
+import { formatSom, unitLabel } from '@santexgo/ui/format';
 
 /**
  * Narx: chegirma bo'lsa eski narx ustidan chiziq, yangi narx katta va qizil, foiz belgisi.

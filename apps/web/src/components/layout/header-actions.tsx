@@ -2,10 +2,10 @@
 
 import { Heart, ShoppingCart, User } from 'lucide-react';
 import Link from 'next/link';
-import { useMe } from '@/lib/auth';
+import { useMe } from '@santexgo/ui/auth';
 import { useFavoriteIds } from '@/lib/favorites';
 import { cartCount, useCart } from '@/lib/stores/cart';
-import { useIsClient } from '@/lib/use-is-client';
+import { useIsClient } from '@santexgo/ui/use-is-client';
 
 function useCartCount(): number | null {
   const lines = useCart((state) => state.lines);

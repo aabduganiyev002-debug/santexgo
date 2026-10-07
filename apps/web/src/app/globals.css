@@ -1,79 +1,8 @@
 @import 'tailwindcss';
-
-/*
- * SantexGo dizayn tizimi: kam rang, ishonchli ko'k (suv), neytral kulrang fon,
- * chegirma uchun qizil, mavjudlik uchun yashil. Mahsulot rasmlari asosiy fokusda.
- */
-@theme {
-  --font-sans:
-    ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial,
-    'Noto Sans', sans-serif;
-
-  --color-brand-50: #eff6ff;
-  --color-brand-100: #dbeafe;
-  --color-brand-200: #bfdbfe;
-  --color-brand-300: #93c5fd;
-  --color-brand-400: #60a5fa;
-  --color-brand-500: #3b82f6;
-  --color-brand-600: #1d63d8;
-  --color-brand-700: #1a4fb4;
-  --color-brand-800: #1b4290;
-  --color-brand-900: #1b3a72;
-  --color-brand-950: #142449;
-
-  --color-sale: #dc2626;
-  --color-sale-soft: #fef2f2;
-  --color-success: #059669;
-  --color-success-soft: #ecfdf5;
-  --color-warning: #d97706;
-  --color-warning-soft: #fffbeb;
-
-  --radius-card: 0.875rem;
-  --shadow-card: 0 1px 2px rgb(15 23 42 / 0.04), 0 1px 3px rgb(15 23 42 / 0.06);
-  --shadow-pop: 0 10px 30px -10px rgb(15 23 42 / 0.25);
-}
-
-@layer base {
-  html {
-    -webkit-text-size-adjust: 100%;
-    -webkit-tap-highlight-color: transparent;
-  }
-
-  body {
-    @apply bg-slate-50 text-slate-900 antialiased;
-  }
-
-  :focus-visible {
-    @apply outline-2 outline-offset-2 outline-brand-600;
-  }
-
-  /* Raqamlar (narx, miqdor) bir xil kenglikda — ustunlar tekis turadi */
-  .tabular {
-    font-variant-numeric: tabular-nums;
-  }
-}
-
-@layer components {
-  .container-page {
-    @apply mx-auto w-full max-w-7xl px-4 sm:px-6;
-  }
-
-  .card {
-    @apply rounded-[var(--radius-card)] bg-white shadow-[var(--shadow-card)];
-  }
-
-  /* Gorizontal suriladigan qator (telefonda barmoq bilan) */
-  .scroll-row {
-    @apply flex snap-x snap-mandatory gap-3 overflow-x-auto scroll-smooth pb-2;
-    scrollbar-width: none;
-  }
-  .scroll-row::-webkit-scrollbar {
-    display: none;
-  }
-  .scroll-row > * {
-    @apply snap-start;
-  }
-}
+/* Umumiy dizayn tokenlari va bazaviy klasslar (admin panel bilan bir xil) */
+@import '@santexgo/ui/theme.css';
+/* Tailwind umumiy UI paketidagi klasslarni ham ko'rishi uchun */
+@source '../../../../packages/ui/src';
 
 /* Telefonda pastki menyu ostida kontent yashirinib qolmasligi uchun */
 .pb-safe {

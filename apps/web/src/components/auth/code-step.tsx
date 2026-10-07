@@ -2,9 +2,9 @@
 
 import { formatUzPhone, OTP_CODE_LENGTH } from '@santexgo/shared';
 import { type FormEvent, useEffect, useState } from 'react';
-import { Alert } from '@/components/ui/alert';
-import { Button } from '@/components/ui/button';
-import { Field } from '@/components/ui/field';
+import { Alert } from '@santexgo/ui/alert';
+import { Button } from '@santexgo/ui/button';
+import { Field } from '@santexgo/ui/field';
 
 /** Qolgan soniyalar (qayta yuborish taymeri). */
 export function useCountdown(seconds: number): [number, (s: number) => void] {

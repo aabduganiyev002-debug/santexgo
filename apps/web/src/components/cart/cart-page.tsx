@@ -7,16 +7,16 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useRef } from 'react';
 import { Price } from '@/components/product/price';
 import { QuantityStepper } from '@/components/product/quantity-stepper';
-import { Alert } from '@/components/ui/alert';
-import { Button, buttonClass } from '@/components/ui/button';
-import { Skeleton } from '@/components/ui/skeleton';
-import { errorMessage } from '@/lib/api/errors';
-import { useMe } from '@/lib/auth';
+import { Alert } from '@santexgo/ui/alert';
+import { Button, buttonClass } from '@santexgo/ui/button';
+import { Skeleton } from '@santexgo/ui/skeleton';
+import { errorMessage } from '@santexgo/ui/api-errors';
+import { useMe } from '@santexgo/ui/auth';
 import { useCartView } from '@/lib/cart-view';
-import { cn } from '@/lib/cn';
-import { formatSom, unitLabel } from '@/lib/format';
+import { cn } from '@santexgo/ui/cn';
+import { formatSom, unitLabel } from '@santexgo/ui/format';
 import { type CartLine, useCart } from '@/lib/stores/cart';
-import { toast } from '@/lib/stores/toast';
+import { toast } from '@santexgo/ui/toast';
 import { OrderSummary } from './order-summary';
 
 /** Savatcha: mahsulotlar, miqdor, muammolar (qoldiq yetmasa) va jami summa. */

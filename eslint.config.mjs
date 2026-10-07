@@ -5,7 +5,11 @@ import reactHooks from 'eslint-plugin-react-hooks';
 import globals from 'globals';
 import tseslint from 'typescript-eslint';
 
-const WEB_APPS = ['apps/web/**/*.{ts,tsx}', 'apps/admin/**/*.{ts,tsx}'];
+const WEB_APPS = [
+  'apps/web/**/*.{ts,tsx}',
+  'apps/admin/**/*.{ts,tsx}',
+  'packages/ui/**/*.{ts,tsx}',
+];
 
 export default defineConfig(
   globalIgnores([
@@ -33,7 +37,7 @@ export default defineConfig(
     },
   },
   {
-    // Next.js ilovalari: brauzer muhiti, React hook qoidalari, Next.js tavsiyalari
+    // Next.js ilovalari va umumiy UI paketi: brauzer muhiti, React hook qoidalari, Next.js tavsiyalari
     files: WEB_APPS,
     plugins: { 'react-hooks': reactHooks, '@next/next': nextPlugin },
     languageOptions: {

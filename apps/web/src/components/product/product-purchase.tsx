@@ -4,10 +4,10 @@ import type { ProductDetail } from '@santexgo/shared';
 import { ShoppingCart, Zap } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { unitLabel } from '@/lib/format';
+import { Button } from '@santexgo/ui/button';
+import { unitLabel } from '@santexgo/ui/format';
 import { useCart } from '@/lib/stores/cart';
-import { toast } from '@/lib/stores/toast';
+import { toast } from '@santexgo/ui/toast';
 import { FavoriteButton } from './favorite-button';
 import { QuantityStepper } from './quantity-stepper';
 

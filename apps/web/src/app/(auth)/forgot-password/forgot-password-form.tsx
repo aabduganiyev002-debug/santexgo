@@ -17,14 +17,14 @@ import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { AuthCard } from '@/components/auth/auth-card';
 import { CodeStep } from '@/components/auth/code-step';
-import { PasswordInput } from '@/components/auth/password-input';
-import { PhoneInput } from '@/components/auth/phone-input';
-import { Alert } from '@/components/ui/alert';
-import { Button } from '@/components/ui/button';
-import { api } from '@/lib/api/client';
-import { ApiRequestError, errorMessage, isApiError } from '@/lib/api/errors';
-import { useSetSession } from '@/lib/auth';
-import { applyApiErrors } from '@/lib/form-errors';
+import { PasswordInput } from '@santexgo/ui/password-input';
+import { PhoneInput } from '@santexgo/ui/phone-input';
+import { Alert } from '@santexgo/ui/alert';
+import { Button } from '@santexgo/ui/button';
+import { api } from '@santexgo/ui/api-client';
+import { ApiRequestError, errorMessage, isApiError } from '@santexgo/ui/api-errors';
+import { useSetSession } from '@santexgo/ui/auth';
+import { applyApiErrors } from '@santexgo/ui/form-errors';
 
 const newPasswordForm = z
   .object({ password: newPasswordSchema, passwordConfirm: z.string() })

@@ -3,8 +3,8 @@
 import type { AuthResponse, AuthUser } from '@santexgo/shared';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect } from 'react';
-import { api, hasSessionHint, onSessionExpired } from './api/client';
-import { isApiError } from './api/errors';
+import { api, hasSessionHint, onSessionExpired } from './api-client';
+import { isApiError } from './api-errors';
 import { useIsClient } from './use-is-client';
 
 export const ME_QUERY_KEY = ['auth', 'me'] as const;

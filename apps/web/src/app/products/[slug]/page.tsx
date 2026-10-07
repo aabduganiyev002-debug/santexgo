@@ -9,9 +9,9 @@ import { ProductPurchase } from '@/components/product/product-purchase';
 import { ProductRail } from '@/components/product/product-rail';
 import { StockLabel } from '@/components/product/stock-label';
 import { serverGet } from '@/lib/api/server';
-import { cn } from '@/lib/cn';
+import { cn } from '@santexgo/ui/cn';
 import { SITE_URL } from '@/lib/config';
-import { formatSom, timeLeft } from '@/lib/format';
+import { formatSom, timeLeft } from '@santexgo/ui/format';
 import { getSettings } from '@/lib/site-data';
 
 const DOCUMENT_LABELS: Record<ProductDetail['documents'][number]['type'], string> = {

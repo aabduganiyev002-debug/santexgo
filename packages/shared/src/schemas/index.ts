@@ -6,3 +6,4 @@ export * from './content-admin.js';
 export * from './discount-admin.js';
 export * from './order.js';
 export { z } from './zod.js';
+export * from './customer-admin.js';

@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { cn } from '@/lib/cn';
+import { cn } from '@santexgo/ui/cn';
 
 export function LogoMark({ className }: { className?: string }) {
   return (

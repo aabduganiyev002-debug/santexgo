@@ -1,7 +1,7 @@
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import Link from 'next/link';
 import { type CatalogParams, toQueryString } from '@/lib/catalog-url';
-import { cn } from '@/lib/cn';
+import { cn } from '@santexgo/ui/cn';
 
 function pages(current: number, total: number): (number | '…')[] {
   const result: (number | '…')[] = [];

@@ -5,7 +5,7 @@ import { ChevronRight, LayoutGrid, X } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
-import { cn } from '@/lib/cn';
+import { cn } from '@santexgo/ui/cn';
 
 /** Kompyuterdagi "Katalog" tugmasi: kategoriyalar va subkategoriyalar paneli. */
 export function CatalogMenu({ categories }: { categories: CategoryNode[] }) {

@@ -2,8 +2,8 @@
 
 import { CheckCircle2, Info, X, XCircle } from 'lucide-react';
 import Link from 'next/link';
-import { cn } from '@/lib/cn';
-import { useToasts } from '@/lib/stores/toast';
+import { cn } from './cn';
+import { useToasts } from './toast';
 
 const ICONS = { success: CheckCircle2, error: XCircle, info: Info };
 

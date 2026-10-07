@@ -1,6 +1,6 @@
 import 'server-only';
 import { notFound } from 'next/navigation';
-import { ApiRequestError } from './errors';
+import { ApiRequestError } from '@santexgo/ui/api-errors';
 
 const API_INTERNAL_URL = (process.env.API_INTERNAL_URL ?? 'http://127.0.0.1:4000').replace(
   /\/+$/,

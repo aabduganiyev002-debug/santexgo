@@ -12,15 +12,15 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { MapPin, Pencil, Plus, Star, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { Alert } from '@/components/ui/alert';
-import { Button } from '@/components/ui/button';
-import { Field, inputClass } from '@/components/ui/field';
-import { Modal } from '@/components/ui/modal';
-import { Skeleton } from '@/components/ui/skeleton';
-import { api } from '@/lib/api/client';
-import { errorMessage } from '@/lib/api/errors';
-import { applyApiErrors } from '@/lib/form-errors';
-import { toast } from '@/lib/stores/toast';
+import { Alert } from '@santexgo/ui/alert';
+import { Button } from '@santexgo/ui/button';
+import { Field, inputClass } from '@santexgo/ui/field';
+import { Modal } from '@santexgo/ui/modal';
+import { Skeleton } from '@santexgo/ui/skeleton';
+import { api } from '@santexgo/ui/api-client';
+import { errorMessage } from '@santexgo/ui/api-errors';
+import { applyApiErrors } from '@santexgo/ui/form-errors';
+import { toast } from '@santexgo/ui/toast';
 
 const KEY = ['account', 'addresses'] as const;
 

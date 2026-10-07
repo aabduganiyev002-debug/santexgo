@@ -6,12 +6,12 @@ import { Heart } from 'lucide-react';
 import type { ReactNode } from 'react';
 import Link from 'next/link';
 import { ProductGrid } from '@/components/product/product-grid';
-import { Alert } from '@/components/ui/alert';
-import { Button, buttonClass } from '@/components/ui/button';
-import { Skeleton } from '@/components/ui/skeleton';
-import { api } from '@/lib/api/client';
-import { errorMessage } from '@/lib/api/errors';
-import { useMe } from '@/lib/auth';
+import { Alert } from '@santexgo/ui/alert';
+import { Button, buttonClass } from '@santexgo/ui/button';
+import { Skeleton } from '@santexgo/ui/skeleton';
+import { api } from '@santexgo/ui/api-client';
+import { errorMessage } from '@santexgo/ui/api-errors';
+import { useMe } from '@santexgo/ui/auth';
 import { useFavoriteIds } from '@/lib/favorites';
 
 /** Sevimli mahsulotlar. Yurakcha olib tashlansa — ro'yxatdan darhol yo'qoladi. */

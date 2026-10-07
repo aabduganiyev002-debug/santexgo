@@ -4,8 +4,8 @@ import { Heart, LayoutDashboard, LogOut, MapPin, Package, UserCog } from 'lucide
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect } from 'react';
-import { useLogout, useMe } from '@/lib/auth';
-import { cn } from '@/lib/cn';
+import { useLogout, useMe } from '@santexgo/ui/auth';
+import { cn } from '@santexgo/ui/cn';
 
 const ITEMS = [
   { href: '/account', label: 'Umumiy', icon: LayoutDashboard, exact: true },

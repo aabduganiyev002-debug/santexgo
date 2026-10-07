@@ -6,9 +6,9 @@ import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { type FormEvent, type KeyboardEvent, useEffect, useId, useRef, useState } from 'react';
 import { ProductImage } from '@/components/product/product-image';
-import { api } from '@/lib/api/client';
-import { cn } from '@/lib/cn';
-import { formatSom } from '@/lib/format';
+import { api } from '@santexgo/ui/api-client';
+import { cn } from '@santexgo/ui/cn';
+import { formatSom } from '@santexgo/ui/format';
 
 interface Option {
   href: string;

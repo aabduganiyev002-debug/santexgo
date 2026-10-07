@@ -2,7 +2,7 @@
 
 import { X } from 'lucide-react';
 import { type ReactNode, useEffect, useRef } from 'react';
-import { cn } from '@/lib/cn';
+import { cn } from './cn';
 
 /** Modal oyna (brauzerning <dialog> elementi: fokus, Esc va fon avtomatik). */
 export function Modal({

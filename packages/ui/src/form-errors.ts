@@ -1,5 +1,5 @@
 import type { FieldValues, Path, UseFormSetError } from 'react-hook-form';
-import { ApiRequestError, errorMessage } from './api/errors';
+import { ApiRequestError, errorMessage } from './api-errors';
 
 /**
  * API xatosini formaga qo'yadi: maydon xatolari — maydonlar ostida, qolgani — umumiy xabar.

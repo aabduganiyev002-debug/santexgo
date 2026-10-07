@@ -17,17 +17,17 @@ import { KeyRound, Phone, User } from 'lucide-react';
 import { type ReactNode, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { CodeStep } from '@/components/auth/code-step';
-import { PasswordInput } from '@/components/auth/password-input';
-import { PhoneInput } from '@/components/auth/phone-input';
-import { Alert } from '@/components/ui/alert';
-import { Button } from '@/components/ui/button';
-import { Field } from '@/components/ui/field';
-import { Skeleton } from '@/components/ui/skeleton';
-import { api } from '@/lib/api/client';
-import { errorMessage, isApiError } from '@/lib/api/errors';
-import { ME_QUERY_KEY, useMe } from '@/lib/auth';
-import { applyApiErrors } from '@/lib/form-errors';
-import { toast } from '@/lib/stores/toast';
+import { PasswordInput } from '@santexgo/ui/password-input';
+import { PhoneInput } from '@santexgo/ui/phone-input';
+import { Alert } from '@santexgo/ui/alert';
+import { Button } from '@santexgo/ui/button';
+import { Field } from '@santexgo/ui/field';
+import { Skeleton } from '@santexgo/ui/skeleton';
+import { api } from '@santexgo/ui/api-client';
+import { errorMessage, isApiError } from '@santexgo/ui/api-errors';
+import { ME_QUERY_KEY, useMe } from '@santexgo/ui/auth';
+import { applyApiErrors } from '@santexgo/ui/form-errors';
+import { toast } from '@santexgo/ui/toast';
 
 /** Profil va xavfsizlik: ism-familiya, telefon raqami (SMS bilan), parol. */
 export function ProfileSettings() {

@@ -1,6 +1,6 @@
 import { OUT_OF_STOCK_LABEL, type ProductUnit, type StockInfo } from '@santexgo/shared';
-import { cn } from '@/lib/cn';
-import { unitLabel } from '@/lib/format';
+import { cn } from '@santexgo/ui/cn';
+import { unitLabel } from '@santexgo/ui/format';
 
 /** "Sotuvda: 450 dona" / "Kam qoldi: 5 dona" / "SOTUVDA YO'Q" */
 export function StockLabel({

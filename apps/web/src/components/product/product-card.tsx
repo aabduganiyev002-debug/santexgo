@@ -1,7 +1,7 @@
 import type { ProductCard as ProductCardData } from '@santexgo/shared';
 import Link from 'next/link';
-import { Badge } from '@/components/ui/badge';
-import { cn } from '@/lib/cn';
+import { Badge } from '@santexgo/ui/badge';
+import { cn } from '@santexgo/ui/cn';
 import { AddToCartButton } from './add-to-cart-button';
 import { FavoriteButton } from './favorite-button';
 import { Price } from './price';

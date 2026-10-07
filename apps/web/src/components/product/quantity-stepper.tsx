@@ -1,7 +1,7 @@
 'use client';
 
 import { Minus, Plus } from 'lucide-react';
-import { cn } from '@/lib/cn';
+import { cn } from '@santexgo/ui/cn';
 
 /** "−  10  +" — miqdor tanlash (qo'lda yozish ham mumkin). */
 export function QuantityStepper({

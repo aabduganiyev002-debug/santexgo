@@ -2,10 +2,10 @@
 
 import type { FavoriteIds } from '@santexgo/shared';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { api } from './api/client';
-import { errorMessage } from './api/errors';
-import { useMe } from './auth';
-import { toast } from './stores/toast';
+import { api } from '@santexgo/ui/api-client';
+import { errorMessage } from '@santexgo/ui/api-errors';
+import { useMe } from '@santexgo/ui/auth';
+import { toast } from '@santexgo/ui/toast';
 
 export const FAVORITE_IDS_KEY = ['account', 'favorites', 'ids'] as const;
 

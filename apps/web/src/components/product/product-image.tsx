@@ -1,5 +1,5 @@
 import type { ImageUrls } from '@santexgo/shared';
-import { cn } from '@/lib/cn';
+import { cn } from '@santexgo/ui/cn';
 
 interface ProductImageProps {
   image: ImageUrls | null;

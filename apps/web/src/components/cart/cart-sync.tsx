@@ -2,9 +2,9 @@
 
 import type { CartView } from '@santexgo/shared';
 import { useEffect } from 'react';
-import { api } from '@/lib/api/client';
-import { isApiError } from '@/lib/api/errors';
-import { useMe } from '@/lib/auth';
+import { api } from '@santexgo/ui/api-client';
+import { isApiError } from '@santexgo/ui/api-errors';
+import { useMe } from '@santexgo/ui/auth';
 import { isServerSyncPaused, useCart, withoutServerSync } from '@/lib/stores/cart';
 
 const PUSH_DELAY_MS = 400;

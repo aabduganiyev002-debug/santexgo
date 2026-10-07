@@ -4,7 +4,7 @@ import type { AttributeFacet, CategoryFacet, FacetValue, ProductFacets } from '@
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import Link from 'next/link';
 import { type FormEvent, type ReactNode, useState } from 'react';
-import { Button } from '@/components/ui/button';
+import { Button } from '@santexgo/ui/button';
 import {
   type CatalogParams,
   listValues,
@@ -12,8 +12,8 @@ import {
   toggleValue,
   toQueryString,
 } from '@/lib/catalog-url';
-import { cn } from '@/lib/cn';
-import { formatSom } from '@/lib/format';
+import { cn } from '@santexgo/ui/cn';
+import { formatSom } from '@santexgo/ui/format';
 import { useCatalogNavigation } from './use-catalog-navigation';
 
 const COLLAPSED_LIMIT = 8;

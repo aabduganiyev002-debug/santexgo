@@ -17,6 +17,8 @@ const nextConfig: NextConfig = {
   outputFileTracingRoot: path.join(import.meta.dirname, '../../'),
   poweredByHeader: false,
   reactStrictMode: true,
+  // Umumiy UI paketi TypeScript manbasi sifatida eksport qilinadi — shu yerda kompilyatsiya qilinadi
+  transpilePackages: ['@santexgo/ui'],
   // Rasmlar API'da allaqachon WebP va kerakli o'lchamlarda tayyorlanadi
   images: { unoptimized: true },
   // Brauzer API'ga sayt manzili orqali murojaat qiladi (/api/...) — bitta domen, CORS kerak emas.

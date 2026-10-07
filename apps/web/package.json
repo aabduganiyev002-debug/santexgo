@@ -13,6 +13,7 @@
   "dependencies": {
     "@hookform/resolvers": "5.9.1",
     "@santexgo/shared": "workspace:*",
+    "@santexgo/ui": "workspace:*",
     "@tanstack/react-query": "5.104.1",
     "clsx": "2.1.1",
     "lucide-react": "1.52.0",

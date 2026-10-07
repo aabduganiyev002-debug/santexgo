@@ -3,7 +3,7 @@
 import type { ProductFacets } from '@santexgo/shared';
 import { X } from 'lucide-react';
 import { type CatalogParams, attributeParams, listValues, toggleValue } from '@/lib/catalog-url';
-import { formatSom } from '@/lib/format';
+import { formatSom } from '@santexgo/ui/format';
 import { useCatalogNavigation } from './use-catalog-navigation';
 
 interface Chip {

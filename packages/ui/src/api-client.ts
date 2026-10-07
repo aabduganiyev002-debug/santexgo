@@ -1,7 +1,7 @@
 'use client';
 
 import { AUTH_COOKIES } from '@santexgo/shared';
-import { ApiRequestError } from './errors';
+import { ApiRequestError } from './api-errors';
 
 interface RequestOptions {
   method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';

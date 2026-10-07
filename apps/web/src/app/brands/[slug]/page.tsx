@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { CatalogView } from '@/components/catalog/catalog-view';
 import { serverGet } from '@/lib/api/server';
 import { normalizeSearchParams, toQueryString } from '@/lib/catalog-url';
-import { cn } from '@/lib/cn';
+import { cn } from '@santexgo/ui/cn';
 
 async function getBrand(slug: string) {
   return serverGet<BrandDetail>(`/catalog/brands/${encodeURIComponent(slug)}`, { revalidate: 300 });

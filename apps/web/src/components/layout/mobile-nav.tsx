@@ -3,8 +3,8 @@
 import { Home, LayoutGrid, ShoppingCart, Tag, User } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useMe } from '@/lib/auth';
-import { cn } from '@/lib/cn';
+import { useMe } from '@santexgo/ui/auth';
+import { cn } from '@santexgo/ui/cn';
 import { CartCountBadge } from './header-actions';
 
 /** Telefondagi pastki menyu: bosh sahifa, katalog, brendlar, savatcha, kabinet. */

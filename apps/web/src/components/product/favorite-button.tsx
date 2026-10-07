@@ -2,10 +2,10 @@
 
 import { Heart } from 'lucide-react';
 import { usePathname, useRouter } from 'next/navigation';
-import { useMe } from '@/lib/auth';
-import { cn } from '@/lib/cn';
+import { useMe } from '@santexgo/ui/auth';
+import { cn } from '@santexgo/ui/cn';
 import { useFavoriteIds, useToggleFavorite } from '@/lib/favorites';
-import { toast } from '@/lib/stores/toast';
+import { toast } from '@santexgo/ui/toast';
 
 /** Yurakcha: sevimlilarga qo'shish/olib tashlash. Kirmagan bo'lsa — kirish sahifasiga. */
 export function FavoriteButton({

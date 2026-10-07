@@ -1,6 +1,6 @@
 import type { InputHTMLAttributes, ReactNode } from 'react';
 import { forwardRef } from 'react';
-import { cn } from '@/lib/cn';
+import { cn } from '@santexgo/ui/cn';
 
 /** Radio tugma — katta bosiladigan kartochka ko'rinishida (yetkazib berish, to'lov, manzil). */
 export const ChoiceCard = forwardRef<

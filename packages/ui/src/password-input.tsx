@@ -2,7 +2,7 @@
 
 import { Eye, EyeOff } from 'lucide-react';
 import { forwardRef, type InputHTMLAttributes, useState } from 'react';
-import { Field } from '@/components/ui/field';
+import { Field } from './field';
 
 interface PasswordInputProps extends Omit<
   InputHTMLAttributes<HTMLInputElement>,
