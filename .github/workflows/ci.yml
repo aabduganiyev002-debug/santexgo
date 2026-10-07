@@ -134,6 +134,8 @@ jobs:
           curl -sf http://127.0.0.1:3000/products/plastherm-ppr-truba-d25-pn20-4-m | grep -q 'PLT-PPR-PN20-25'
           curl -sf http://127.0.0.1:3000/api/v1/catalog/brands | grep -q 'plastherm'
           curl -sf http://127.0.0.1:3000/cart | grep -q 'Savatcha'
+          # Kabinet kirmagan foydalanuvchini kirish sahifasiga yo'naltiradi
+          curl -s -o /dev/null -w '%{redirect_url}' http://127.0.0.1:3000/account | grep -q '/login?next=%2Faccount'
           code=$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:3000/products/mavjud-emas)
           test "$code" = "404" || { cat web.log; exit 1; }
 

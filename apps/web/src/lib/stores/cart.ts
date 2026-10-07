@@ -29,6 +29,8 @@ interface CartState {
    */
   owner: string | null;
   add: (product: ProductCard, quantity?: number) => CartLine;
+  /** Bir nechta qatorni qo'shish (masalan, "Qayta buyurtma"): miqdorlar qo'shiladi */
+  addLines: (lines: CartLine[]) => void;
   setQuantity: (productId: string, quantity: number) => void;
   remove: (productId: string) => void;
   clear: () => void;
@@ -100,6 +102,17 @@ export const useCart = create<CartState>()(
         }));
         return line;
       },
+      addLines: (incoming) =>
+        set((state) => {
+          const lines = [...state.lines];
+          for (const line of incoming) {
+            const index = lines.findIndex((l) => l.productId === line.productId);
+            const quantity = clampQuantity((lines[index]?.quantity ?? 0) + line.quantity, line);
+            if (index >= 0) lines[index] = { ...line, quantity };
+            else lines.push({ ...line, quantity });
+          }
+          return { lines };
+        }),
       setQuantity: (productId, quantity) =>
         set((state) => ({
           lines: state.lines.map((l) =>

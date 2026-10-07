@@ -2,7 +2,7 @@
 
 Santexnika mahsulotlari (PPR, PVC, PP trubalar, fittinglar, kanalizatsiya, armatura) uchun online do'kon va buyurtma platformasi.
 
-Loyiha bosqichma-bosqich ishlab chiqilmoqda. Hozirgi holat: **6-bosqich tayyor** — savatcha, sevimlilar, buyurtma berish (ORDER-10254), ombordagi qoldiqning avtomatik kamayishi va admin uchun buyurtma statuslarini boshqarish API'si.
+Loyiha bosqichma-bosqich ishlab chiqilmoqda. Hozirgi holat: **7-bosqich tayyor** — mijozlar sayti to'liq: katalog, qidiruv, savatcha, buyurtma berish (ORDER-10254), sevimlilar va shaxsiy kabinet. Keyingi bosqich — admin panel.
 
 Platforma qanday tuzilgani (arxitektura, baza, mijoz/admin/buyurtma/chegirma jarayonlari, texnologiyalar): **[docs/ARXITEKTURA.md](docs/ARXITEKTURA.md)**.
 
@@ -112,6 +112,14 @@ API hujjati (Swagger) — http://localhost:4000/api/docs, "Katalog" va "Admin: .
 - **SMS xabarnoma** (ixtiyoriy, `ORDER_SMS_ENABLED=true`): buyurtma qabul qilindi, yo'lga chiqdi, yetkazildi, bekor qilindi.
 - **Sevimlilar:** mahsulot kartochkasidagi yurakcha, `/favorites` sahifasi.
 
+## Shaxsiy kabinet
+
+- **Umumiy:** jami buyurtmalar, hozirgi buyurtmalar, jami xarid summasi (yetkazilgan buyurtmalar bo'yicha), sevimlilar va asosiy manzil.
+- **Buyurtmalarim:** barcha / hozirgi / yakunlangan; har bir buyurtmada holat bosqichlari (vaqti bilan), mahsulotlar, summa, manzil, to'lov. Tasdiqlanishidan oldin bekor qilish (sabab bilan) va "Qayta buyurtma berish" (mahsulotlar joriy narxda savatchaga qo'shiladi).
+- **Manzillar:** bir nechta manzil, asosiy manzil checkout'da avtomatik tanlanadi.
+- **Profil va xavfsizlik:** ism-familiya; telefon raqamini yangi raqamga kelgan SMS kod bilan o'zgartirish; parolni o'zgartirish (joriy parol talab qilinadi, boshqa qurilmalardan chiqiladi).
+- Kabinet va checkout sahifalari kirmagan foydalanuvchini kirish sahifasiga yo'naltiradi (kirgandan keyin shu sahifaga qaytadi).
+
 ## Chegirmalar
 
 - Admin foizli (−15%) yoki aniq summali (−10 000 so'm) chegirma yaratadi: boshlanish va tugash sanasi, mahsulot, kategoriya (ichki kategoriyalari bilan) yoki brendga.
@@ -132,7 +140,7 @@ Admin bosh sahifa bannerlarini (kompyuter va telefon uchun alohida rasm, muddat)
 4. ✅ Chegirmalar moduli (foizli/summali, muddatli, avtomatik), bannerlar, material tugmalari, sozlamalar
 5. ✅ Mijozlar sayti: homepage, katalog, filtrlar, qidiruv, mahsulot sahifasi, kirish, mobil versiya
 6. ✅ Savatcha, sevimlilar, checkout, buyurtma va ombor; admin buyurtmalar API'si
-7. Shaxsiy kabinet va buyurtmalar tarixi
+7. ✅ Shaxsiy kabinet: buyurtmalar tarixi va holati, manzillar, profil, parol va telefonni o'zgartirish
 8. Admin panel
 9. Admin statistika va grafiklar
 10. Xavfsizlik tekshiruvi, serverga deploy, backup

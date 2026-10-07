@@ -176,3 +176,26 @@ export interface AdminOrderDetail extends OrderDetailView {
 export interface FavoriteIds {
   productIds: string[];
 }
+
+/** Shaxsiy kabinet bosh sahifasi. */
+export interface AccountOverview {
+  user: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    phone: string;
+    /** Ro'yxatdan o'tgan sana */
+    createdAt: string;
+  };
+  stats: {
+    ordersCount: number;
+    activeOrdersCount: number;
+    deliveredCount: number;
+    /** Yetkazilgan buyurtmalar summasi */
+    totalSpent: number;
+  };
+  /** Hozirgi (yakunlanmagan) buyurtmalar — oxirgi 5 tasi */
+  activeOrders: OrderSummaryView[];
+  favoritesCount: number;
+  addresses: AddressView[];
+}

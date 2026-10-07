@@ -72,3 +72,17 @@ export type ChangePasswordInput = z.input<typeof changePasswordSchema>;
 export const refreshTokenSchema = z.object({
   refreshToken: z.string().min(20).max(200).optional(),
 });
+
+/** Shaxsiy kabinet: ism va familiyani o'zgartirish. */
+export const profileUpdateSchema = z.object({
+  firstName: personNameSchema('Ism'),
+  lastName: personNameSchema('Familiya'),
+});
+export type ProfileUpdateInput = z.input<typeof profileUpdateSchema>;
+
+/** Telefon raqamini o'zgartirish: yangi raqamga kelgan SMS kod bilan. */
+export const changePhoneSchema = z.object({
+  phone: phoneSchema,
+  code: otpCodeSchema,
+});
+export type ChangePhoneInput = z.input<typeof changePhoneSchema>;

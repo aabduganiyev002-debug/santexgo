@@ -1,7 +1,7 @@
 import { forwardRef, type ButtonHTMLAttributes } from 'react';
 import { cn } from '@/lib/cn';
 
-type Variant = 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger';
+type Variant = 'primary' | 'secondary' | 'outline' | 'ghost' | 'ghostDanger' | 'danger';
 type Size = 'sm' | 'md' | 'lg' | 'icon';
 
 const VARIANTS: Record<Variant, string> = {
@@ -12,6 +12,7 @@ const VARIANTS: Record<Variant, string> = {
   outline:
     'border border-slate-300 bg-white text-slate-800 hover:border-brand-600 hover:text-brand-700 disabled:text-slate-400 disabled:hover:border-slate-300',
   ghost: 'text-slate-700 hover:bg-slate-100 disabled:text-slate-400',
+  ghostDanger: 'text-sale hover:bg-sale-soft disabled:text-slate-400',
   danger: 'bg-sale text-white hover:bg-red-700 disabled:bg-slate-300',
 };
 

@@ -159,11 +159,11 @@ export function OrderSuccess({
       </section>
 
       <div className="flex flex-col gap-3 sm:flex-row sm:justify-center">
-        <Link href="/catalog" className={buttonClass('primary', 'lg')}>
-          Xaridni davom ettirish
+        <Link href={`/account/orders/${order.number}`} className={buttonClass('primary', 'lg')}>
+          Buyurtmani kuzatish
         </Link>
-        <Link href="/" className={buttonClass('outline', 'lg')}>
-          Bosh sahifa
+        <Link href="/catalog" className={buttonClass('outline', 'lg')}>
+          Xaridni davom ettirish
         </Link>
       </div>
     </div>

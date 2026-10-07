@@ -20,7 +20,10 @@ export function applyApiErrors<T extends FieldValues>(
         unmatched = true;
       }
     }
-    return unmatched || error.code !== 'VALIDATION_ERROR' ? error.message : null;
+    if (unmatched) return error.message;
+    // Umumiy matn maydon ostidagi bilan bir xil bo'lsa — ikki marta ko'rsatilmaydi
+    const duplicate = error.errors.some((fieldError) => fieldError.message === error.message);
+    return error.code === 'VALIDATION_ERROR' || duplicate ? null : error.message;
   }
   return errorMessage(error);
 }
