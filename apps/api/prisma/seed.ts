@@ -8,16 +8,12 @@
  * Ishga tushirish: pnpm db:seed
  */
 import { PrismaPg } from '@prisma/adapter-pg';
-import {
-  calculatePrice,
-  isDiscountActive,
-  normalizeUzPhone,
-  slugify,
-  type DiscountRule,
-} from '@santexgo/shared';
+import { isDiscountActive, normalizeUzPhone, slugify } from '@santexgo/shared';
 import { PrismaClient, type Prisma } from '../src/generated/prisma/client.js';
 import { ADMIN_PASSWORD_MIN_LENGTH, hashPassword } from '../src/common/security/password.js';
 import { dbErrorHint } from '../src/infra/prisma/db-error-hint.js';
+import { buildSearchText } from '../src/modules/catalog/search-text.js';
+import { priceProduct } from '../src/modules/pricing/pricing.calculator.js';
 import {
   ATTRIBUTES,
   BRANDS,
@@ -263,28 +259,34 @@ async function seedDiscounts(
   }
 }
 
+/** Kategoriya va uning barcha ota-kategoriyalari (chegirma va qidiruv matni uchun). */
+async function categoryPaths(prisma: PrismaClient) {
+  const categories = await prisma.category.findMany({
+    select: { id: true, parentId: true, name: true },
+  });
+  const byId = new Map(categories.map((c) => [c.id, c]));
+  return (categoryId: string) => {
+    const path: { id: string; name: string }[] = [];
+    let current = byId.get(categoryId);
+    while (current && !path.some((c) => c.id === current!.id)) {
+      path.unshift({ id: current.id, name: current.name });
+      current = current.parentId ? byId.get(current.parentId) : undefined;
+    }
+    return path;
+  };
+}
+
 /**
- * Har bir mahsulotning joriy narxini amaldagi chegirmalar bo'yicha qayta hisoblaydi.
- * Kategoriyaga qo'yilgan chegirma uning barcha subkategoriyalariga ham tegishli.
- * (Keyingi bosqichda bu mantiq Pricing moduliga ko'chadi.)
+ * Har bir mahsulotning joriy narxini amaldagi chegirmalar bo'yicha qayta hisoblaydi
+ * (API'dagi narx moduli bilan bir xil formula). Kategoriyaga qo'yilgan chegirma
+ * barcha subkategoriyalarga ham tegishli.
  */
 async function recalculatePrices(prisma: PrismaClient): Promise<number> {
   const now = new Date();
   const discounts = (
     await prisma.discount.findMany({ where: { isActive: true }, include: { targets: true } })
   ).filter((d) => isDiscountActive(d, now));
-
-  const categories = await prisma.category.findMany({ select: { id: true, parentId: true } });
-  const parentOf = new Map(categories.map((c) => [c.id, c.parentId]));
-  const withAncestors = (categoryId: string): Set<string> => {
-    const result = new Set<string>();
-    let current: string | null | undefined = categoryId;
-    while (current && !result.has(current)) {
-      result.add(current);
-      current = parentOf.get(current);
-    }
-    return result;
-  };
+  const pathOf = await categoryPaths(prisma);
 
   const products = await prisma.product.findMany({
     select: {
@@ -299,19 +301,8 @@ async function recalculatePrices(prisma: PrismaClient): Promise<number> {
 
   let changed = 0;
   for (const product of products) {
-    const categoryIds = withAncestors(product.categoryId);
-    const rules: DiscountRule[] = discounts
-      .filter((d) =>
-        d.targets.some(
-          (t) =>
-            t.productId === product.id ||
-            t.brandId === product.brandId ||
-            (t.categoryId !== null && categoryIds.has(t.categoryId)),
-        ),
-      )
-      .map((d) => ({ id: d.id, type: d.type, value: d.value, priority: d.priority }));
-
-    const price = calculatePrice(product.basePrice, rules);
+    const path = new Set(pathOf(product.categoryId).map((c) => c.id));
+    const price = priceProduct(product, discounts, path);
     if (
       price.finalPrice !== product.currentPrice ||
       price.discountId !== product.appliedDiscountId
@@ -324,6 +315,47 @@ async function recalculatePrices(prisma: PrismaClient): Promise<number> {
     }
   }
   return changed;
+}
+
+/** Qidiruv matni (API'dagi bilan bir xil): nom, SKU, brend, kategoriya, material, o'lchamlar. */
+async function refreshSearchText(prisma: PrismaClient): Promise<void> {
+  const pathOf = await categoryPaths(prisma);
+  const products = await prisma.product.findMany({
+    select: {
+      id: true,
+      name: true,
+      sku: true,
+      searchText: true,
+      categoryId: true,
+      brand: { select: { name: true } },
+      material: { select: { name: true, fullName: true } },
+      attributeValues: {
+        select: {
+          numberValue: true,
+          textValue: true,
+          attribute: { select: { unit: true, type: true } },
+        },
+      },
+    },
+  });
+  for (const product of products) {
+    const text = buildSearchText({
+      name: product.name,
+      sku: product.sku,
+      brand: product.brand.name,
+      categories: pathOf(product.categoryId).map((c) => c.name),
+      material: product.material,
+      attributes: product.attributeValues
+        .filter((v) => v.attribute.type !== 'BOOLEAN')
+        .map((v) => ({
+          unit: v.attribute.unit,
+          value: v.numberValue !== null ? String(v.numberValue) : (v.textValue ?? ''),
+        })),
+    });
+    if (text !== product.searchText) {
+      await prisma.product.update({ where: { id: product.id }, data: { searchText: text } });
+    }
+  }
 }
 
 async function seedHomeAndSettings(
@@ -426,6 +458,7 @@ async function main(): Promise<void> {
     const { productIds, restocked } = await seedProducts(prisma, refs);
     await seedDiscounts(prisma, refs, productIds);
     const repriced = await recalculatePrices(prisma);
+    await refreshSearchText(prisma);
     await seedHomeAndSettings(prisma, refs);
     const adminMessage = await seedAdmin(prisma, adminInput);
 

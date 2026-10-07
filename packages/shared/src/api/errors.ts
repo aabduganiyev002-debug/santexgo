@@ -26,6 +26,13 @@ export const API_ERROR_CODES = [
   'SMS_SEND_FAILED',
   'SESSION_INVALID',
   'PASSWORD_INCORRECT',
+  // Katalog va ombor
+  'SKU_TAKEN',
+  'SLUG_TAKEN',
+  'HAS_DEPENDENCIES',
+  'INVALID_REFERENCE',
+  'FILE_INVALID',
+  'STOCK_INSUFFICIENT',
 ] as const;
 export type ApiErrorCode = (typeof API_ERROR_CODES)[number];
 

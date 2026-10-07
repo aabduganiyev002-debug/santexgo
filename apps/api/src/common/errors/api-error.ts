@@ -36,8 +36,13 @@ export class ApiError extends HttpException {
     return new ApiError(HttpStatus.NOT_FOUND, 'NOT_FOUND', message);
   }
 
-  static conflict(code: ApiErrorCode, message: string): ApiError {
-    return new ApiError(HttpStatus.CONFLICT, code, message);
+  static conflict(code: ApiErrorCode, message: string, options?: ApiErrorOptions): ApiError {
+    return new ApiError(HttpStatus.CONFLICT, code, message, options);
+  }
+
+  /** Forma maydoniga bog'langan xato: { errors: [{ field, message }] } */
+  static field(status: HttpStatus, code: ApiErrorCode, field: string, message: string): ApiError {
+    return new ApiError(status, code, message, { errors: [{ field, message }] });
   }
 
   static tooManyRequests(code: ApiErrorCode, message: string, retryAfter?: number): ApiError {

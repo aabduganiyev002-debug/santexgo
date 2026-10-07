@@ -11,11 +11,18 @@ import { RateLimitModule } from './infra/rate-limit/rate-limit.module.js';
 import { ThrottlerStorageAdapter } from './infra/rate-limit/throttler-storage.js';
 import { RedisModule } from './infra/redis/redis.module.js';
 import { SmsModule } from './infra/sms/sms.module.js';
+import { StorageModule } from './infra/storage/storage.module.js';
+import { AdminModule } from './modules/admin/admin.module.js';
+import { AuditModule } from './modules/audit/audit.module.js';
 import { AuthModule } from './modules/auth/auth.module.js';
 import { AuthGuard } from './modules/auth/guards/auth.guard.js';
 import { CsrfGuard } from './modules/auth/guards/csrf.guard.js';
 import { RolesGuard } from './modules/auth/guards/roles.guard.js';
+import { CatalogCoreModule } from './modules/catalog/catalog-core.module.js';
+import { CatalogModule } from './modules/catalog/catalog.module.js';
 import { HealthModule } from './modules/health/health.module.js';
+import { InventoryModule } from './modules/inventory/inventory.module.js';
+import { PricingModule } from './modules/pricing/pricing.module.js';
 
 @Module({
   imports: [
@@ -37,8 +44,15 @@ import { HealthModule } from './modules/health/health.module.js';
       }),
     }),
     SmsModule,
+    StorageModule,
+    AuditModule,
     HealthModule,
     AuthModule,
+    CatalogCoreModule,
+    PricingModule,
+    InventoryModule,
+    CatalogModule,
+    AdminModule,
   ],
   providers: [
     { provide: APP_FILTER, useClass: AllExceptionsFilter },

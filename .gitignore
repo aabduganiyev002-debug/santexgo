@@ -19,3 +19,6 @@ apps/api/src/generated/
 # Tizim va loglar
 .DS_Store
 *.log
+
+# Lokal yuklangan fayllar (rasmlar)
+apps/api/uploads/

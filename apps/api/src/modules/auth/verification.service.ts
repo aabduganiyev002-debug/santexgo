@@ -72,12 +72,13 @@ export class VerificationService {
         }
       }
 
-      const [perPhone, perIp] = await Promise.all([
-        tx.verificationCode.count({ where: { phone, createdAt: { gte: hourAgo } } }),
-        ipAddress
-          ? tx.verificationCode.count({ where: { ipAddress, createdAt: { gte: hourAgo } } })
-          : Promise.resolve(0),
-      ]);
+      // Tranzaksiya ichida so'rovlar ketma-ket (bitta ulanish orqali)
+      const perPhone = await tx.verificationCode.count({
+        where: { phone, createdAt: { gte: hourAgo } },
+      });
+      const perIp = ipAddress
+        ? await tx.verificationCode.count({ where: { ipAddress, createdAt: { gte: hourAgo } } })
+        : 0;
       if (perPhone >= AUTH_LIMITS.codesPerPhonePerHour || perIp >= CODES_PER_IP_PER_HOUR) {
         throw ApiError.tooManyRequests(
           'SMS_LIMIT_REACHED',

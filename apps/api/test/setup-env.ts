@@ -1,3 +1,6 @@
+import { mkdtempSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
 /**
  * E2E testlar uchun muhit. Baza manzili DATABASE_URL dan olinadi (CI'da toza baza).
  * Lokal kompyuterda: apps/api/.env dagi baza ishlatiladi; testlar o'zi yaratgan
@@ -14,6 +17,10 @@ if (!process.env.DATABASE_URL) {
 }
 
 Object.assign(process.env, {
+  // Yuklangan rasmlar vaqtinchalik papkaga (loyiha papkasi ifloslanmasin)
+  STORAGE_DRIVER: 'local',
+  STORAGE_LOCAL_DIR: mkdtempSync(path.join(tmpdir(), 'santexgo-e2e-')),
+  MEDIA_PUBLIC_URL: '/api/media',
   NODE_ENV: 'test',
   AUTH_SECRET: 'e2e-test-secret-e2e-test-secret-e2e-test-secret',
   SMS_PROVIDER: 'console',

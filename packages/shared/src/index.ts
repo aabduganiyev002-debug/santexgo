@@ -5,4 +5,5 @@ export * from './order.js';
 export * from './phone.js';
 export * from './product.js';
 export * from './schemas/index.js';
+export * from './search.js';
 export * from './slug.js';

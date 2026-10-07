@@ -33,8 +33,7 @@ flowchart LR
     AD -->|/api| API
     API[Backend API<br/>NestJS] --> PG[(PostgreSQL<br/>asosiy baza)]
     API --> R[(Redis<br/>rate limit, kesh)]
-    API --> MS[(Meilisearch<br/>qidiruv)]
-    API --> S3[(S3 saqlash<br/>rasmlar, PDF)]
+    API --> S3[(Fayllar: disk yoki S3<br/>rasmlar, PDF)]
     API --> SMS[Eskiz.uz<br/>SMS]
     API -.kelajakda.-> PAY[Click / Payme / Uzum]
     API -.kelajakda.-> TG[Telegram bot]
@@ -45,10 +44,9 @@ flowchart LR
 | **Mijozlar sayti** (`web`) | Katalog, qidiruv, savatcha, buyurtma, shaxsiy kabinet. Sahifalar serverda tayyorlanadi — tez ochiladi va Google'da yaxshi topiladi (SEO). |
 | **Admin panel** (`admin`)  | Mahsulot, brend, kategoriya, chegirma, buyurtma, mijoz, ombor va statistika boshqaruvi. Alohida domenda.                                  |
 | **Backend API** (`api`)    | Butun biznes mantiq shu yerda: narx hisoblash, ombor, buyurtma, huquqlar. Saytlar faqat API orqali ishlaydi.                              |
-| **PostgreSQL**             | Asosiy va yagona "haqiqat manbai": barcha ma'lumotlar shu yerda.                                                                          |
+| **PostgreSQL**             | Asosiy va yagona "haqiqat manbai": barcha ma'lumotlar shu yerda. Qidiruv va filtrlar ham shu yerda (pg_trgm) — narx va qoldiq doim aniq.  |
 | **Redis**                  | So'rovlar chegarasi (rate limit), vaqtinchalik kesh.                                                                                      |
-| **Meilisearch**            | Tez qidiruv va filtrlar ("Plastherm 25 PN20" → bir zumda). Baza nusxasi — o'chib qolsa ham ma'lumot yo'qolmaydi.                          |
-| **S3 saqlash**             | Mahsulot rasmlari, brend logotiplari, sertifikatlar (PDF).                                                                                |
+| **Fayllar**                | Mahsulot rasmlari, brend logotiplari, sertifikatlar (PDF): server diskida yoki S3 (Cloudflare R2) da.                                     |
 
 **Nega bunday tuzilma:**
 
@@ -289,30 +287,32 @@ Admin yangi tugmani kod yozmasdan qo'shadi. Telefonda bu qator barmoq bilan suri
 
 **Birgalikdagi filtr** (eng muhim funksiya): `Brend: Plastherm` + `Material: PPR` + `Diametr: 25 mm` + `PN20` + `Narx: 50 000–200 000` — barchasi birga ishlaydi, har bir filtr yonida nechta mahsulot borligi ko'rsatiladi. Filtrlar URL'da saqlanadi (`/catalog?brand=plastherm&material=ppr&diameter=25&pn=PN20&price=50000-200000`) — havolani do'stga yuborsa, u ham aynan shu natijani ko'radi.
 
-**Qidiruv:** "Plastherm 25 PN20" → nom, SKU, brend, kategoriya, material va o'lchamlar bo'yicha qidiradi; xato yozilgan so'zlarni ham tushunadi ("plasterm" → Plastherm), yozish jarayonida natija chiqadi.
+**Qidiruv:** "Plastherm 25 PN20" → nom, SKU, brend, kategoriya, material va o'lchamlar bo'yicha qidiradi; xato yozilgan so'zlarni ham tushunadi ("plasterm" → Plastherm), kirill yozuvini ("пвх труба 50", "шаровой кран") va xalq tilidagi nomlarni ("quvur" → truba, "otvod" → tirsak) taniydi, yozish jarayonida takliflar chiqadi.
+
+Qidiruv alohida xizmatsiz, PostgreSQL ichida ishlaydi (pg_trgm indeksi): narx va qoldiq har doim aniq, qo'shimcha server kerak emas. 100 mingdan ortiq mahsulotgacha tez ishlaydi; katalog undan ham o'ssa, qidiruvni alohida tizimga (Meilisearch, Elasticsearch) ko'chirish uchun joy tayyor.
 
 ---
 
 ## 9. Texnologiyalar
 
-| Qatlam       | Texnologiya                    | Nega                                                                            |
-| ------------ | ------------------------------ | ------------------------------------------------------------------------------- |
-| Til          | TypeScript (hamma joyda)       | Bitta til — frontend va backend umumiy kod ishlatadi, xatolar oldindan topiladi |
-| Backend      | NestJS 12                      | Modulli tuzilma, katta jamoalar uchun standart, testlash oson                   |
-| ORM          | Prisma 7                       | Tiplangan so'rovlar, migratsiyalar, SQL injection'dan himoya                    |
-| Baza         | PostgreSQL 16                  | Ishonchli, tranzaksiyalar, CHECK cheklovlar, katta hajmga tayyor                |
-| Kesh / limit | Redis 8                        | Rate limit, kesh, kelajakda navbatlar                                           |
-| Qidiruv      | Meilisearch                    | Tez, xatoga chidamli qidiruv va filtrlar; o'rnatish oson                        |
-| Fayllar      | S3 (Cloudflare R2 yoki boshqa) | Arzon, cheksiz; lokal muhitda SeaweedFS                                         |
-| Frontend     | Next.js 16 + React 19          | Server render (tez va SEO), mobil uchun yengil                                  |
-| Dizayn       | Tailwind CSS 4                 | Bir xil, minimalistik dizayn tizimi; ortiqcha kod yo'q                          |
-| Formalar     | React Hook Form + Zod          | Validatsiya qoidalari server bilan umumiy (`packages/shared`)                   |
-| Grafiklar    | Recharts                       | Admin statistikasi                                                              |
-| SMS          | Eskiz.uz                       | O'zbekistondagi eng ommabop SMS shlyuz; provayderni almashtirish oson           |
-| Monorepo     | pnpm + Turborepo               | Bitta repozitoriy, tez build                                                    |
-| Server       | Docker Compose + Caddy         | Avtomatik HTTPS sertifikat, bitta buyruq bilan deploy                           |
-| Testlar      | Vitest, Supertest              | Narx, ombor, buyurtma mantiqlari avtomatik tekshiriladi                         |
-| CI           | GitHub Actions                 | Har bir o'zgarishda testlar va build avtomatik                                  |
+| Qatlam       | Texnologiya                  | Nega                                                                            |
+| ------------ | ---------------------------- | ------------------------------------------------------------------------------- |
+| Til          | TypeScript (hamma joyda)     | Bitta til — frontend va backend umumiy kod ishlatadi, xatolar oldindan topiladi |
+| Backend      | NestJS 12                    | Modulli tuzilma, katta jamoalar uchun standart, testlash oson                   |
+| ORM          | Prisma 7                     | Tiplangan so'rovlar, migratsiyalar, SQL injection'dan himoya                    |
+| Baza         | PostgreSQL 16                | Ishonchli, tranzaksiyalar, CHECK cheklovlar, katta hajmga tayyor                |
+| Kesh / limit | Redis 8                      | Rate limit, kesh, kelajakda navbatlar                                           |
+| Qidiruv      | PostgreSQL pg_trgm           | Xatoga chidamli qidiruv, sinonimlar, kirill/lotin; alohida xizmat shart emas    |
+| Fayllar      | Disk yoki S3 (Cloudflare R2) | Kichik do'kon uchun disk yetarli; o'sganda R2 (arzon, CDN)                      |
+| Frontend     | Next.js 16 + React 19        | Server render (tez va SEO), mobil uchun yengil                                  |
+| Dizayn       | Tailwind CSS 4               | Bir xil, minimalistik dizayn tizimi; ortiqcha kod yo'q                          |
+| Formalar     | React Hook Form + Zod        | Validatsiya qoidalari server bilan umumiy (`packages/shared`)                   |
+| Grafiklar    | Recharts                     | Admin statistikasi                                                              |
+| SMS          | Eskiz.uz                     | O'zbekistondagi eng ommabop SMS shlyuz; provayderni almashtirish oson           |
+| Monorepo     | pnpm + Turborepo             | Bitta repozitoriy, tez build                                                    |
+| Server       | Docker Compose + Caddy       | Avtomatik HTTPS sertifikat, bitta buyruq bilan deploy                           |
+| Testlar      | Vitest, Supertest            | Narx, ombor, buyurtma mantiqlari avtomatik tekshiriladi                         |
+| CI           | GitHub Actions               | Har bir o'zgarishda testlar va build avtomatik                                  |
 
 ---
 
@@ -330,7 +330,7 @@ santexgo/
 │   │       ├── main.ts           Ishga tushirish, xavfsizlik sozlamalari
 │   │       ├── config/           Muhit o'zgaruvchilari tekshiruvi
 │   │       ├── common/           Umumiy: guardlar, validatsiya, xatolar formati
-│   │       ├── infra/            Prisma, Redis, S3, Meilisearch, SMS ulanishlari
+│   │       ├── infra/            Prisma, Redis, fayl saqlash (disk/S3), SMS ulanishlari
 │   │       └── modules/          Biznes modullar:
 │   │           ├── auth/         ro'yxatdan o'tish, login, SMS, parol tiklash
 │   │           ├── account/      profil, manzillar, mening buyurtmalarim
@@ -368,7 +368,7 @@ santexgo/
 | Avtorizatsiya      | Har bir API manzili sukut bo'yicha yopiq; ochiqlari aniq belgilanadi. Admin API'lari faqat `ADMIN` roli uchun. Mijoz faqat o'z buyurtmalarini ko'radi.                                               |
 | SMS kodlar         | 6 xonali, 5 daqiqa, 5 ta urinish, bazada faqat xeshi saqlanadi; telefon va IP bo'yicha yuborish cheklangan                                                                                           |
 | Input validatsiya  | Har bir so'rov Zod sxemasi bilan tekshiriladi; ortiqcha maydonlar tashlab yuboriladi                                                                                                                 |
-| SQL injection      | Prisma parametrlangan so'rovlar; qo'lda SQL yozilmaydi                                                                                                                                               |
+| SQL injection      | Barcha so'rovlar parametrlangan (Prisma); murakkab filtrlar ham faqat parametrlar bilan                                                                                                              |
 | XSS                | React avtomatik ekranlaydi; qat'iy HTTP sarlavhalar (Helmet, CSP)                                                                                                                                    |
 | CSRF               | `SameSite` cookie + maxsus sarlavha talabi                                                                                                                                                           |
 | Rate limiting      | Barcha API'ga IP bo'yicha limit; login, SMS va parol tiklashga qattiqroq limit (Redis)                                                                                                               |

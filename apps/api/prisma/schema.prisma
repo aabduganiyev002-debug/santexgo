@@ -327,6 +327,11 @@ model Product {
   warrantyMonths    Int?        @map("warranty_months")
   isActive          Boolean     @default(true) @map("is_active")
   isFeatured        Boolean     @default(false) @map("is_featured")
+  /// Sotuvga mavjud qoldiq: faol omborlar bo'yicha (quantity − reserved) yig'indisi.
+  /// Bazadagi trigger avtomatik yangilaydi — kod orqali yozilmaydi.
+  availableStock    Int         @default(0) @map("available_stock")
+  /// Qidiruv uchun normallashtirilgan matn: nom, SKU, brend, kategoriya, material, xususiyatlar
+  searchText        String      @default("") @map("search_text")
   soldCount         Int         @default(0) @map("sold_count")
   ratingAvg         Float       @default(0) @map("rating_avg")
   ratingCount       Int         @default(0) @map("rating_count")
@@ -360,6 +365,8 @@ model Product {
   @@index([isActive, currentPrice])
   @@index([isActive, createdAt])
   @@index([isActive, soldCount])
+  @@index([isActive, availableStock])
+  @@index([searchText(ops: raw("gin_trgm_ops"))], type: Gin)
   @@map("products")
 }
 

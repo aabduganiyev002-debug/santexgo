@@ -38,6 +38,11 @@ const CYRILLIC_TO_LATIN: Record<string, string> = {
   ҳ: 'h',
 };
 
+/** Kirill (rus va o'zbek) harflarini lotinga o'giradi; boshqa belgilar o'zgarmaydi. Kichik harflar kutiladi. */
+export function transliterate(lowercase: string): string {
+  return lowercase.replace(/[а-яёўқғҳ]/g, (ch) => CYRILLIC_TO_LATIN[ch] ?? '');
+}
+
 /**
  * URL uchun slug yaratadi (lotin, kirill va o'zbek harflarini qo'llab-quvvatlaydi).
  * "Plastherm PPR truba Ø25 PN20" → "plastherm-ppr-truba-d25-pn20"
@@ -48,7 +53,7 @@ export function slugify(input: string, maxLength = 200): string {
     .toLowerCase()
     .replace(/[ʻʼ‘’'`]/g, '')
     .replace(/[ø⌀]/g, 'd')
-    .replace(/[а-яёўқғҳ]/g, (ch) => CYRILLIC_TO_LATIN[ch] ?? '')
+    .replace(/[а-яёўқғҳ]/g, (ch) => transliterate(ch))
     .normalize('NFKD')
     .replace(/[̀-ͯ]/g, '')
     .replace(/[^a-z0-9]+/g, '-')

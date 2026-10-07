@@ -9,7 +9,7 @@
  *   1. Node.js, pnpm va Docker borligini tekshiradi
  *   2. .env fayllarini tasodifiy xavfsiz parollar bilan yaratadi (mavjud fayllarga tegmaydi)
  *   3. Bog'liqliklarni o'rnatadi
- *   4. PostgreSQL, Redis, Meilisearch va S3 xizmatlarini Docker'da ishga tushiradi
+ *   4. PostgreSQL va Redis xizmatlarini Docker'da ishga tushiradi
  *   5. Bazaga migratsiyalarni qo'llaydi
  *   6. Namunaviy katalog va admin akkauntni yozadi
  *
@@ -208,10 +208,9 @@ function ensureEnvFiles() {
       fillTemplate(ROOT_ENV_EXAMPLE, {
         POSTGRES_PASSWORD: secret(),
         REDIS_PASSWORD: secret(),
-        MEILI_MASTER_KEY: secret(),
       }),
     );
-    ok('.env yaratildi (baza, Redis va qidiruv uchun tasodifiy parollar bilan)');
+    ok('.env yaratildi (baza va Redis uchun tasodifiy parollar bilan)');
   }
 
   const infra = readEnv(ROOT_ENV);
@@ -289,12 +288,12 @@ function main() {
   step('Baza va xizmatlarni ishga tushirish');
   if (useDocker) {
     run(
-      `${COMPOSE} up -d --wait --wait-timeout 300`,
+      `${COMPOSE} up -d --wait --wait-timeout 300 --remove-orphans`,
       'Docker Desktop ochiq va internet bor ekanini tekshiring. "port is already allocated" ' +
         'xatosi chiqsa, kompyuterda boshqa PostgreSQL ishlayapti: .env da POSTGRES_PORT=5433 ' +
         'qiling va apps/api/.env dagi DATABASE_URL portini ham 5433 ga o‘zgartiring.',
     );
-    ok('PostgreSQL, Redis, Meilisearch va S3 ishlayapti');
+    ok('PostgreSQL va Redis ishlayapti');
   } else {
     note(
       'O‘tkazib yuborildi (--no-docker): baza apps/api/.env dagi DATABASE_URL bo‘yicha ishlatiladi',

@@ -65,6 +65,26 @@ export const envSchema = z
     /** Masalan ".santexgo.uz" — bo'sh bo'lsa, cookie faqat joriy domenga tegishli */
     COOKIE_DOMAIN: optional(z.string().regex(/^\.?[a-z0-9.-]+$/i)),
 
+    // ── Fayllar (rasmlar, PDF) ──
+    /** local — server diskida (STORAGE_LOCAL_DIR); s3 — S3-mos xizmat (Cloudflare R2, AWS, SeaweedFS) */
+    STORAGE_DRIVER: z.enum(['local', 's3']).default('local'),
+    STORAGE_LOCAL_DIR: z.string().min(1).default('uploads'),
+    /** Fayllarning ochiq manzili: "/api/media" (local) yoki "https://media.santexgo.uz" (S3/CDN) */
+    MEDIA_PUBLIC_URL: z
+      .string()
+      .min(1)
+      .default('/api/media')
+      .refine((value) => value.startsWith('/') || /^https?:\/\//.test(value), {
+        message: '"/" yoki http(s):// bilan boshlanishi kerak',
+      }),
+    S3_ENDPOINT: optional(z.url({ protocol: /^https?$/ })),
+    S3_REGION: z.string().min(1).default('auto'),
+    S3_BUCKET: optional(z.string().min(3).max(63)),
+    S3_ACCESS_KEY: optional(z.string().min(1)),
+    S3_SECRET_KEY: optional(z.string().min(1)),
+    /** SeaweedFS va MinIO uchun true (Cloudflare R2 va AWS uchun false) */
+    S3_FORCE_PATH_STYLE: z.stringbool().default(false),
+
     // ── SMS ──
     /** console — kod terminalga chiqadi (faqat lokal); eskiz — Eskiz.uz orqali haqiqiy SMS */
     SMS_PROVIDER: z.enum(['console', 'eskiz']).default('console'),
@@ -80,6 +100,17 @@ export const envSchema = z
         code: 'custom',
         path: ['ESKIZ_EMAIL'],
         message: 'SMS_PROVIDER=eskiz uchun ESKIZ_EMAIL va ESKIZ_PASSWORD berilishi shart',
+      });
+    }
+    if (
+      env.STORAGE_DRIVER === 's3' &&
+      (!env.S3_BUCKET || !env.S3_ACCESS_KEY || !env.S3_SECRET_KEY)
+    ) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['S3_BUCKET'],
+        message:
+          'STORAGE_DRIVER=s3 uchun S3_BUCKET, S3_ACCESS_KEY va S3_SECRET_KEY berilishi shart',
       });
     }
     if (env.NODE_ENV === 'production' && env.SMS_PROVIDER === 'console') {

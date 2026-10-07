@@ -4,6 +4,7 @@ import type { NestExpressApplication } from '@nestjs/platform-express';
 import { Test } from '@nestjs/testing';
 import supertest from 'supertest';
 import { AppModule } from '../src/app.module.js';
+import { hashPassword } from '../src/common/security/password.js';
 import { configureApp } from '../src/app.setup.js';
 import { PrismaService } from '../src/infra/prisma/prisma.service.js';
 import { ConsoleSmsSender } from '../src/infra/sms/console-sms.sender.js';
@@ -72,3 +73,26 @@ export function cookieValue(setCookie: string[] | string | undefined, name: stri
 }
 
 export const VALID_PASSWORD = 'Parol12345';
+
+/** Bazada admin yaratib, u bilan kirgan agent (cookie'lar ichida). */
+export async function createAdminAgent(ctx: TestContext) {
+  const phone = randomPhone(ctx);
+  await ctx.prisma.user.create({
+    data: {
+      firstName: 'E2E',
+      lastName: 'Admin',
+      phone,
+      passwordHash: await hashPassword(VALID_PASSWORD),
+      role: 'ADMIN',
+      phoneVerifiedAt: new Date(),
+    },
+  });
+  const agent = supertest.agent(ctx.app.getHttpServer());
+  await agent.post('/api/v1/auth/login').send({ phone, password: VALID_PASSWORD }).expect(200);
+  return agent;
+}
+
+/** Testlar bir-biriga xalaqit bermasligi uchun nomlarga qo'shiladigan tasodifiy qism. */
+export function uniqueSuffix(): string {
+  return randomInt(100_000, 999_999).toString();
+}

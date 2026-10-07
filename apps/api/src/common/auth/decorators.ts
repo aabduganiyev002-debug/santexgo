@@ -37,3 +37,16 @@ export const OptionalUser = createParamDecorator(
   (_data: unknown, ctx: ExecutionContext): RequestUser | undefined =>
     ctx.switchToHttp().getRequest<Request>().user,
 );
+
+/** Admin amallari uchun: kim (foydalanuvchi ID) va qayerdan (IP) — audit jurnaliga yoziladi. */
+export interface ActorContext {
+  userId: string;
+  ipAddress: string | null;
+}
+
+export const Actor = createParamDecorator((_data: unknown, ctx: ExecutionContext): ActorContext => {
+  const req = ctx.switchToHttp().getRequest<Request>();
+  if (!req.user) throw new UnauthorizedException();
+  const ip = req.ip ? req.ip.replace(/^::ffff:/, '').slice(0, 45) : null;
+  return { userId: req.user.id, ipAddress: ip };
+});

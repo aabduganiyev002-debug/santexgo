@@ -2,7 +2,7 @@
 
 Santexnika mahsulotlari (PPR, PVC, PP trubalar, fittinglar, kanalizatsiya, armatura) uchun online do'kon va buyurtma platformasi.
 
-Loyiha bosqichma-bosqich ishlab chiqilmoqda. Hozirgi holat: **2-bosqich tayyor** — ro'yxatdan o'tish (SMS), kirish, parolni tiklash, rollar va himoya.
+Loyiha bosqichma-bosqich ishlab chiqilmoqda. Hozirgi holat: **3-bosqich tayyor** — katalog API (filtrlar, qidiruv, mahsulot sahifasi) va admin uchun katalog boshqaruvi (mahsulotlar, rasmlar, brendlar, kategoriyalar, ombor).
 
 Platforma qanday tuzilgani (arxitektura, baza, mijoz/admin/buyurtma/chegirma jarayonlari, texnologiyalar): **[docs/ARXITEKTURA.md](docs/ARXITEKTURA.md)**.
 
@@ -14,7 +14,7 @@ Platforma qanday tuzilgani (arxitektura, baza, mijoz/admin/buyurtma/chegirma jar
 | `apps/web`        | Mijozlar sayti — Next.js (6-bosqich)                                                   |
 | `apps/admin`      | Admin panel — Next.js (9-bosqich)                                                      |
 | `packages/shared` | Frontend va backend uchun umumiy kod: narx/chegirma hisobi, statuslar, telefon formati |
-| `docker`          | Lokal infratuzilma: PostgreSQL, Redis, Meilisearch, SeaweedFS (S3)                     |
+| `docker`          | Lokal infratuzilma: PostgreSQL, Redis (ixtiyoriy: SeaweedFS — S3 sinovi uchun)         |
 
 ## Ishga tushirish
 
@@ -75,20 +75,29 @@ Muhim qoidalar:
 
 ## Seed haqida
 
-`pnpm db:seed` 2 ta brend, 4 ta material, 11 ta kategoriya, 38 ta namunaviy mahsulot, 3 ta chegirma va homepage tugmalarini yaratadi. **Narxlar, qoldiqlar va tavsiflar — namuna**, real savdodan oldin almashtiring.
+`pnpm db:seed` 2 ta brend, 4 ta material, 11 ta kategoriya, 38 ta namunaviy mahsulot (rasmsiz), 3 ta chegirma va homepage tugmalarini yaratadi. **Narxlar, qoldiqlar va tavsiflar — namuna**, real savdodan oldin almashtiring.
 
 Birinchi admin `apps/api/.env` dagi `ADMIN_PHONE` va `ADMIN_PASSWORD` dan yaratiladi (parol kamida 10 belgi). Seed'ni qayta ishga tushirish xavfsiz: dublikat yaratilmaydi, ombor qoldiqlari va admin paroli o'zgartirilmaydi.
+
+## Katalog va qidiruv
+
+API hujjati (Swagger) — http://localhost:4000/api/docs, "Katalog" va "Admin: ..." bo'limlari.
+
+- **Filtrlar birgalikda:** `/api/v1/catalog/products?brand=plastherm&material=ppr&diameter_mm=25&pn=PN20&priceMin=50000&priceMax=200000` — har bir filtr qiymati yonida nechta mahsulot borligi qaytadi.
+- **Qidiruv** nom, SKU, brend, kategoriya, material va o'lchamlar bo'yicha: "Plastherm 25 PN20", xato yozuv ("plasterm"), kirill ("пвх труба 50"), xalq tili ("quvur" → truba, "otvod" → tirsak). Alohida qidiruv serveri kerak emas — PostgreSQL'ning o'zida (pg_trgm).
+- **Ombor:** sotuvda mavjud qoldiq bazadagi trigger orqali avtomatik hisoblanadi; har bir o'zgarish tarixga yoziladi. Qoldiq 0 bo'lsa mahsulot "Sotuvda yo'q" bo'ladi va ro'yxat oxiriga tushadi.
+- **Rasmlar** yuklanganda tekshiriladi va WebP formatida 3 o'lchamga (1600/800/400 px) keltiriladi. Standart holatda `apps/api/uploads` papkasida saqlanadi; production'da S3 (Cloudflare R2) ga o'tkazish — `.env` da bir nechta qator.
+- **Admin amallari** (yaratish, tahrirlash, o'chirish, ombor) `audit_logs` jurnaliga yoziladi. Buyurtmalarda bor mahsulot o'chirilmaydi — arxivlanadi.
 
 ## Ish rejasi
 
 1. ✅ Loyiha tuzilmasi, infratuzilma, ma'lumotlar bazasi, seed, API asosi
 2. ✅ Auth: ro'yxatdan o'tish + SMS, login, parolni tiklash, rollar, rate limit
-3. Katalog API: brendlar, kategoriyalar, materiallar, xususiyatlar, mahsulotlar, rasmlar
-4. Chegirma va narx moduli
-5. Qidiruv va filtrlar (Meilisearch)
-6. Mijozlar sayti: homepage, katalog, filtrlar, mahsulot sahifasi, mobil versiya
-7. Savatcha, sevimlilar, checkout, buyurtma va ombor
-8. Shaxsiy kabinet va buyurtmalar tarixi
-9. Admin panel
-10. Admin statistika va grafiklar
-11. Testlar, xavfsizlik tekshiruvi, serverga deploy, backup
+3. ✅ Katalog API, qidiruv va filtrlar; admin: mahsulotlar, rasmlar, brendlar, kategoriyalar, materiallar, xususiyatlar, ombor
+4. Chegirmalar moduli: foizli/summali, muddatli, mahsulot/kategoriya/brendga; avtomatik boshlanish va tugash
+5. Mijozlar sayti: homepage, katalog, filtrlar, mahsulot sahifasi, kirish, mobil versiya
+6. Savatcha, sevimlilar, checkout, buyurtma va ombor
+7. Shaxsiy kabinet va buyurtmalar tarixi
+8. Admin panel
+9. Admin statistika va grafiklar
+10. Xavfsizlik tekshiruvi, serverga deploy, backup

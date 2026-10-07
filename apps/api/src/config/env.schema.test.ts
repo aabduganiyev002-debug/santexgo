@@ -70,6 +70,24 @@ describe('validateEnv', () => {
     expect(() => validateEnv({ ...base, REDIS_URL: 'localhost:6379' })).toThrow(/REDIS_URL/);
   });
 
+  it('S3 sozlamalarini tekshiradi', () => {
+    expect(validateEnv(base)).toMatchObject({
+      STORAGE_DRIVER: 'local',
+      MEDIA_PUBLIC_URL: '/api/media',
+    });
+    expect(() => validateEnv({ ...base, STORAGE_DRIVER: 's3' })).toThrow(/S3_BUCKET/);
+    expect(() => validateEnv({ ...base, MEDIA_PUBLIC_URL: 'media' })).toThrow(/MEDIA_PUBLIC_URL/);
+    const env = validateEnv({
+      ...base,
+      STORAGE_DRIVER: 's3',
+      S3_BUCKET: 'santexgo-media',
+      S3_ACCESS_KEY: 'key',
+      S3_SECRET_KEY: 'secret',
+      S3_FORCE_PATH_STYLE: 'true',
+    });
+    expect(env.S3_FORCE_PATH_STYLE).toBe(true);
+  });
+
   it('SMS provayder sozlamalarini tekshiradi', () => {
     expect(() => validateEnv({ ...base, SMS_PROVIDER: 'eskiz' })).toThrow(/ESKIZ_EMAIL/);
     expect(() => validateEnv({ ...base, NODE_ENV: 'production' })).toThrow(/SMS_PROVIDER/);

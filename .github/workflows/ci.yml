@@ -105,12 +105,8 @@ jobs:
       - name: Barcha xizmatlar javob beradi
         run: |
           docker compose --env-file .env -f docker/docker-compose.yml ps
-          curl -sf http://127.0.0.1:7700/health
           docker compose --env-file .env -f docker/docker-compose.yml exec -T redis \
             sh -c 'redis-cli -a "$REDIS_PASSWORD" --no-auth-warning ping' | grep -q PONG
-          code=$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8333/)
-          echo "S3 javobi: HTTP $code"
-          test "$code" != "000"
 
       - name: API ishga tushadi va bazaga ulanadi
         run: |

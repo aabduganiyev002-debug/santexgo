@@ -6,6 +6,7 @@ import { AUTH_COOKIES } from '@santexgo/shared';
 import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
 import type { Env } from './config/env.schema.js';
+import { localStorageDir } from './infra/storage/storage.module.js';
 
 /**
  * HTTP sozlamalari: xavfsizlik sarlavhalari, CORS, cookie, URL prefiksi, versiyalar, Swagger.
@@ -24,6 +25,17 @@ export function configureApp(app: NestExpressApplication): void {
     credentials: true,
     maxAge: 600,
   });
+  // Lokal saqlashda yuklangan rasmlar API orqali beriladi (fayl nomlari tasodifiy — uzoq kesh)
+  if (config.get('STORAGE_DRIVER', { infer: true }) === 'local') {
+    app.useStaticAssets(localStorageDir(config), {
+      prefix: '/api/media/',
+      index: false,
+      dotfiles: 'deny',
+      fallthrough: true,
+      immutable: true,
+      maxAge: '365d',
+    });
+  }
   app.setGlobalPrefix('api');
   app.enableVersioning({ type: VersioningType.URI, defaultVersion: '1' });
   app.enableShutdownHooks();
