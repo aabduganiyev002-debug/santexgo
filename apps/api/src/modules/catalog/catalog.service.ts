@@ -17,6 +17,7 @@ import {
   type ProductVariant,
   type SearchSuggestions,
   searchTokens,
+  type SitemapData,
 } from '@santexgo/shared';
 import { ApiError } from '../../common/errors/api-error.js';
 import type { Prisma } from '../../generated/prisma/client.js';
@@ -441,6 +442,30 @@ export class CatalogService {
         : [];
     const now = Date.now();
     return [...first, ...rest].map((row) => this.cards.toCard(row, now));
+  }
+
+  /** sitemap.xml uchun ochiq sahifalar ro'yxati (Google va boshqa qidiruv tizimlari uchun). */
+  async sitemap(): Promise<SitemapData> {
+    const [products, brands, tree] = await Promise.all([
+      this.prisma.product.findMany({
+        where: { isActive: true, brand: { isActive: true }, category: { isActive: true } },
+        select: { slug: true, updatedAt: true },
+        orderBy: { updatedAt: 'desc' },
+        take: 45_000,
+      }),
+      this.prisma.brand.findMany({
+        where: { isActive: true },
+        select: { slug: true, updatedAt: true },
+      }),
+      this.cache.categoryTree(),
+    ]);
+    return {
+      products: products.map((p) => ({ slug: p.slug, updatedAt: p.updatedAt.toISOString() })),
+      brands: brands.map((b) => ({ slug: b.slug, updatedAt: b.updatedAt.toISOString() })),
+      categories: [...tree.byId.values()]
+        .filter((c) => tree.isVisible(c.id))
+        .map((c) => ({ slug: c.slug })),
+    };
   }
 
   // ─────────────────────────────── Qidiruv ───────────────────────────────

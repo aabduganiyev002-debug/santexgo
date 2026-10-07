@@ -2,11 +2,12 @@ import { type MiddlewareConsumer, Module, type NestModule } from '@nestjs/common
 import { ConfigModule } from '@nestjs/config';
 import { APP_FILTER, APP_GUARD } from '@nestjs/core';
 import { ScheduleModule } from '@nestjs/schedule';
-import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
+import { ThrottlerModule } from '@nestjs/throttler';
 import { AllExceptionsFilter } from './common/errors/all-exceptions.filter.js';
 import { RequestContextMiddleware } from './common/middleware/request-context.middleware.js';
 import { validateEnv } from './config/env.schema.js';
 import { PrismaModule } from './infra/prisma/prisma.module.js';
+import { AppThrottlerGuard } from './infra/rate-limit/app-throttler.guard.js';
 import { RateLimitModule } from './infra/rate-limit/rate-limit.module.js';
 import { ThrottlerStorageAdapter } from './infra/rate-limit/throttler-storage.js';
 import { RedisModule } from './infra/redis/redis.module.js';
@@ -60,7 +61,7 @@ import { PricingModule } from './modules/pricing/pricing.module.js';
     { provide: APP_FILTER, useClass: AllExceptionsFilter },
     // Tartib muhim: CSRF → rate limit → autentifikatsiya → rol
     { provide: APP_GUARD, useExisting: CsrfGuard },
-    { provide: APP_GUARD, useClass: ThrottlerGuard },
+    { provide: APP_GUARD, useClass: AppThrottlerGuard },
     { provide: APP_GUARD, useExisting: AuthGuard },
     { provide: APP_GUARD, useExisting: RolesGuard },
   ],

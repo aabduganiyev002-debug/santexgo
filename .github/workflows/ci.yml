@@ -120,6 +120,22 @@ jobs:
           cat api.log
           exit 1
 
+      - name: Sayt ishga tushadi va sahifalarni ko'rsatadi
+        run: |
+          pnpm --filter @santexgo/web build
+          cd apps/web
+          node_modules/.bin/next start --port 3000 > web.log 2>&1 &
+          for i in $(seq 1 30); do
+            if curl -sf -o /dev/null http://127.0.0.1:3000/; then break; fi
+            sleep 2
+          done
+          curl -sf http://127.0.0.1:3000/ | grep -q 'SantexGo'
+          curl -sf 'http://127.0.0.1:3000/catalog/trubalar?material=ppr' | grep -q 'PPR'
+          curl -sf http://127.0.0.1:3000/products/plastherm-ppr-truba-d25-pn20-4-m | grep -q 'PLT-PPR-PN20-25'
+          curl -sf http://127.0.0.1:3000/api/v1/catalog/brands | grep -q 'plastherm'
+          code=$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:3000/products/mavjud-emas)
+          test "$code" = "404" || { cat web.log; exit 1; }
+
       - name: Xizmatlar loglari (xato bo'lsa)
         if: failure()
         run: docker compose --env-file .env -f docker/docker-compose.yml logs --tail 50

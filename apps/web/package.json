@@ -1,0 +1,34 @@
+{
+  "name": "@santexgo/web",
+  "version": "0.1.0",
+  "private": true,
+  "description": "SantexGo — mijozlar sayti (Next.js)",
+  "type": "module",
+  "scripts": {
+    "dev": "next dev --port 3000",
+    "build": "next build",
+    "start": "next start --port 3000",
+    "typecheck": "next typegen && tsc --noEmit"
+  },
+  "dependencies": {
+    "@hookform/resolvers": "5.9.1",
+    "@santexgo/shared": "workspace:*",
+    "@tanstack/react-query": "5.104.1",
+    "clsx": "2.1.1",
+    "lucide-react": "1.52.0",
+    "next": "16.4.0",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "react-hook-form": "7.89.0",
+    "server-only": "^0.0.1",
+    "zustand": "5.0.15"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "4.3.3",
+    "@types/node": "24.19.1",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "tailwindcss": "4.3.3",
+    "typescript": "6.0.3"
+  }
+}

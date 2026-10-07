@@ -14,6 +14,7 @@ import {
   productListQuerySchema,
   type ProductListResponse,
   type SearchSuggestions,
+  type SitemapData,
   SLUG_REGEX,
   suggestQuerySchema,
 } from '@santexgo/shared';
@@ -103,6 +104,12 @@ export class CatalogController {
   @ApiOperation({ summary: 'O‘xshash mahsulotlar' })
   similar(@Param('slug') slug: string): Promise<ProductCard[]> {
     return this.catalog.similar(assertSlug(slug));
+  }
+
+  @Get('sitemap')
+  @ApiOperation({ summary: 'sitemap.xml uchun ochiq sahifalar ro‘yxati' })
+  sitemap(): Promise<SitemapData> {
+    return this.catalog.sitemap();
   }
 
   @Get('search/suggest')

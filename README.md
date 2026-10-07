@@ -2,7 +2,7 @@
 
 Santexnika mahsulotlari (PPR, PVC, PP trubalar, fittinglar, kanalizatsiya, armatura) uchun online do'kon va buyurtma platformasi.
 
-Loyiha bosqichma-bosqich ishlab chiqilmoqda. Hozirgi holat: **4-bosqich tayyor** — backend API to'liq katalog, qidiruv, chegirmalar va sayt kontenti bilan. Keyingi bosqich — mijozlar sayti.
+Loyiha bosqichma-bosqich ishlab chiqilmoqda. Hozirgi holat: **5-bosqich tayyor** — mijozlar sayti: bosh sahifa, katalog va filtrlar, qidiruv, brendlar, mahsulot sahifasi, kirish va ro'yxatdan o'tish (kompyuter, planshet va telefon uchun).
 
 Platforma qanday tuzilgani (arxitektura, baza, mijoz/admin/buyurtma/chegirma jarayonlari, texnologiyalar): **[docs/ARXITEKTURA.md](docs/ARXITEKTURA.md)**.
 
@@ -11,7 +11,7 @@ Platforma qanday tuzilgani (arxitektura, baza, mijoz/admin/buyurtma/chegirma jar
 | Papka             | Nima                                                                                   |
 | ----------------- | -------------------------------------------------------------------------------------- |
 | `apps/api`        | Backend API — NestJS 12, Prisma 7, PostgreSQL                                          |
-| `apps/web`        | Mijozlar sayti — Next.js (6-bosqich)                                                   |
+| `apps/web`        | Mijozlar sayti — Next.js 16, React 19, Tailwind CSS 4                                  |
 | `apps/admin`      | Admin panel — Next.js (9-bosqich)                                                      |
 | `packages/shared` | Frontend va backend uchun umumiy kod: narx/chegirma hisobi, statuslar, telefon formati |
 | `docker`          | Lokal infratuzilma: PostgreSQL, Redis (ixtiyoriy: SeaweedFS — S3 sinovi uchun)         |
@@ -24,13 +24,14 @@ Qisqacha (Node.js 22.12+, pnpm 10 va Docker Desktop o'rnatilgan bo'lsa):
 
 ```bash
 pnpm setup:local   # sozlamalar, bog'liqliklar, baza, migratsiyalar va namunaviy ma'lumotlar
-pnpm dev           # API: http://localhost:4000/api/docs
+pnpm dev           # sayt: http://localhost:3000, API: http://localhost:4000/api/docs
 ```
 
 `pnpm setup:local` qayta ishga tushirish xavfsiz — kod yangilangandan keyin ham shuni bering. `.env` fayllari tasodifiy parollar bilan avtomatik yaratiladi va mavjud bo'lsa o'zgartirilmaydi.
 
 Tekshirish:
 
+- Sayt: http://localhost:3000
 - API holati: http://localhost:4000/api/health
 - API hujjati (Swagger): http://localhost:4000/api/docs
 - Baza (Prisma Studio): `pnpm db:studio` → http://localhost:5555
@@ -89,6 +90,17 @@ API hujjati (Swagger) — http://localhost:4000/api/docs, "Katalog" va "Admin: .
 - **Rasmlar** yuklanganda tekshiriladi va WebP formatida 3 o'lchamga (1600/800/400 px) keltiriladi. Standart holatda `apps/api/uploads` papkasida saqlanadi; production'da S3 (Cloudflare R2) ga o'tkazish — `.env` da bir nechta qator.
 - **Admin amallari** (yaratish, tahrirlash, o'chirish, ombor) `audit_logs` jurnaliga yoziladi. Buyurtmalarda bor mahsulot o'chirilmaydi — arxivlanadi.
 
+## Mijozlar sayti
+
+- **Bosh sahifa:** bannerlar slayderi, mashhur brendlar, "Material bo'yicha" (telefonda suriladi), chegirmalar, yangi va ommabop mahsulotlar, kategoriyalar.
+- **Katalog:** filtrlar (kategoriya, mavjudlik, brend, material, narx, diametr, PN...) har bir qiymat yonida soni bilan; tanlanganlar "chip" ko'rinishida; saralash; sahifalash. Filtrlar URL'da saqlanadi — havolani yuborish mumkin. Telefonda filtrlar pastdan ochiladigan oynada.
+- **Qidiruv:** yozish jarayonida takliflar (mahsulot rasmi va narxi bilan), klaviatura bilan boshqariladi.
+- **Brend sahifasi:** brend bo'limlari (PPR TRUBA, PVC TRUBA...) va filtrlar.
+- **Mahsulot sahifasi:** rasmlar, narx (eski narx ustidan chiziq, −15%, chegirma tugash vaqti), qoldiq, o'lcham variantlari, miqdor, "Savatchaga qo'shish" va "Hozir sotib olish", texnik xususiyatlar, sertifikatlar, yetkazib berish, o'xshash mahsulotlar.
+- **Kirish:** telefon + parol; ro'yxatdan o'tish SMS kod bilan; parolni tiklash.
+- **SEO:** har bir sahifa uchun sarlavha va tavsif, Google uchun tuzilgan ma'lumotlar (Product, BreadcrumbList), `sitemap.xml`, `robots.txt`.
+- **Telefon:** pastki menyu (Bosh sahifa, Katalog, Brendlar, Savatcha, Kabinet), doim ko'rinadigan qidiruv.
+
 ## Chegirmalar
 
 - Admin foizli (−15%) yoki aniq summali (−10 000 so'm) chegirma yaratadi: boshlanish va tugash sanasi, mahsulot, kategoriya (ichki kategoriyalari bilan) yoki brendga.
@@ -107,7 +119,7 @@ Admin bosh sahifa bannerlarini (kompyuter va telefon uchun alohida rasm, muddat)
 2. ✅ Auth: ro'yxatdan o'tish + SMS, login, parolni tiklash, rollar, rate limit
 3. ✅ Katalog API, qidiruv va filtrlar; admin: mahsulotlar, rasmlar, brendlar, kategoriyalar, materiallar, xususiyatlar, ombor
 4. ✅ Chegirmalar moduli (foizli/summali, muddatli, avtomatik), bannerlar, material tugmalari, sozlamalar
-5. Mijozlar sayti: homepage, katalog, filtrlar, mahsulot sahifasi, kirish, mobil versiya
+5. ✅ Mijozlar sayti: homepage, katalog, filtrlar, qidiruv, mahsulot sahifasi, kirish, mobil versiya
 6. Savatcha, sevimlilar, checkout, buyurtma va ombor
 7. Shaxsiy kabinet va buyurtmalar tarixi
 8. Admin panel

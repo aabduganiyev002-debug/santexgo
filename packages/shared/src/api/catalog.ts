@@ -242,3 +242,10 @@ export interface HomePageData {
 export const LOW_STOCK_DISPLAY_THRESHOLD = 10;
 /** Shuncha kun ichida qo'shilgan mahsulot "Yangi" belgisi bilan chiqadi */
 export const NEW_PRODUCT_DAYS = 30;
+
+/** sitemap.xml uchun: barcha ochiq sahifalar va oxirgi o'zgarish vaqti. */
+export interface SitemapData {
+  products: { slug: string; updatedAt: string }[];
+  categories: { slug: string }[];
+  brands: { slug: string; updatedAt: string }[];
+}

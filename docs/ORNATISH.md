@@ -72,7 +72,7 @@ Oxirida **"✔ Hammasi tayyor!"** va admin akkaunt paroli chiqadi. Parol `apps/a
 
 1. Docker Desktop ochiq bo'lsin.
 2. Terminalda: `pnpm dev`
-3. Brauzerda oching: http://localhost:4000/api/docs — API hujjati va sinov sahifasi.
+3. Brauzerda oching: **http://localhost:3000** — sayt; http://localhost:4000/api/docs — API hujjati.
 4. To'xtatish: terminalda **Ctrl + C**.
 
 **SMS kodlar (ro'yxatdan o'tish, parolni tiklash):** kompyuterda haqiqiy SMS yuborilmaydi — kod `pnpm dev` ishlayotgan terminalda chiqadi, masalan: `📱 +998901234567: SantexGo: ro'yxatdan o'tish kodi 482913`.

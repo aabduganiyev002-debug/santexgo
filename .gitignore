@@ -22,3 +22,6 @@ apps/api/src/generated/
 
 # Lokal yuklangan fayllar (rasmlar)
 apps/api/uploads/
+
+# Next.js avtomatik yaratadigan tiplar
+next-env.d.ts

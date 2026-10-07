@@ -29,6 +29,8 @@ const ROOT_ENV = path.join(ROOT, '.env');
 const ROOT_ENV_EXAMPLE = path.join(ROOT, '.env.example');
 const API_ENV = path.join(ROOT, 'apps', 'api', '.env');
 const API_ENV_EXAMPLE = path.join(ROOT, 'apps', 'api', '.env.example');
+const WEB_ENV = path.join(ROOT, 'apps', 'web', '.env');
+const WEB_ENV_EXAMPLE = path.join(ROOT, 'apps', 'web', '.env.example');
 const COMPOSE = 'docker compose --env-file .env -f docker/docker-compose.yml';
 const MIN_NODE = { major: 22, minor: 12 };
 const PNPM_INSTALL_HINT =
@@ -247,6 +249,13 @@ function ensureEnvFiles() {
     result.adminPhone = readEnv(API_ENV).ADMIN_PHONE ?? null;
     ok('apps/api/.env yaratildi');
   }
+
+  if (existsSync(WEB_ENV)) {
+    ok('apps/web/.env mavjud — o‘zgartirilmadi');
+  } else {
+    writeFileSync(WEB_ENV, readFileSync(WEB_ENV_EXAMPLE, 'utf8'));
+    ok('apps/web/.env yaratildi');
+  }
   return result;
 }
 
@@ -314,8 +323,11 @@ function main() {
   );
 
   console.log(`\n${green(bold('✔ Hammasi tayyor!'))}\n`);
-  console.log(`  API’ni ishga tushirish:  ${bold('pnpm dev')}`);
-  console.log(`  So‘ng brauzerda oching:  ${cyan('http://localhost:4000/api/docs')}`);
+  console.log(`  Ishga tushirish:         ${bold('pnpm dev')}`);
+  console.log(`  So‘ng brauzerda oching:  ${cyan('http://localhost:3000')}  (sayt)`);
+  console.log(
+    `                           ${cyan('http://localhost:4000/api/docs')}  (API hujjati)`,
+  );
   console.log(
     `  Bazani ko‘rish:          ${bold('pnpm db:studio')}  →  ${cyan('http://localhost:5555')}`,
   );
