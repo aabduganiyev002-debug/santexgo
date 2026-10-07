@@ -99,6 +99,14 @@ enum DocumentType {
   @@map("document_type")
 }
 
+enum VerificationPurpose {
+  REGISTER // Ro'yxatdan o'tish
+  RESET_PASSWORD // Parolni tiklash
+  CHANGE_PHONE // Telefon raqamini o'zgartirish
+
+  @@map("verification_purpose")
+}
+
 enum InventoryMovementType {
   RESTOCK // Kirim
   ORDER_RESERVE // Buyurtma uchun band qilindi
@@ -170,22 +178,47 @@ model Address {
 }
 
 /// Login sessiyalari: refresh token xeshi bilan. Parol o'zgarsa hammasi bekor qilinadi.
+/// Refresh token har ishlatilganda yangilanadi (rotation); oldingi xesh qisqa muddat
+/// (bir vaqtda ochilgan tablar uchun) saqlanadi, undan keyin ishlatilsa — sessiya yopiladi.
 model Session {
-  id               String    @id @default(uuid(7)) @db.Uuid
-  userId           String    @map("user_id") @db.Uuid
-  refreshTokenHash String    @unique @map("refresh_token_hash") @db.VarChar(128)
-  userAgent        String?   @map("user_agent") @db.VarChar(255)
-  ipAddress        String?   @map("ip_address") @db.VarChar(45)
-  expiresAt        DateTime  @map("expires_at") @db.Timestamptz(3)
-  revokedAt        DateTime? @map("revoked_at") @db.Timestamptz(3)
-  lastUsedAt       DateTime  @default(now()) @map("last_used_at") @db.Timestamptz(3)
-  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  id                String    @id @default(uuid(7)) @db.Uuid
+  userId            String    @map("user_id") @db.Uuid
+  refreshTokenHash  String    @unique @map("refresh_token_hash") @db.VarChar(128)
+  previousTokenHash String?   @map("previous_token_hash") @db.VarChar(128)
+  rotatedAt         DateTime? @map("rotated_at") @db.Timestamptz(3)
+  userAgent         String?   @map("user_agent") @db.VarChar(255)
+  ipAddress         String?   @map("ip_address") @db.VarChar(45)
+  expiresAt         DateTime  @map("expires_at") @db.Timestamptz(3)
+  revokedAt         DateTime? @map("revoked_at") @db.Timestamptz(3)
+  lastUsedAt        DateTime  @default(now()) @map("last_used_at") @db.Timestamptz(3)
+  createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+  @@index([previousTokenHash])
   @@index([expiresAt])
   @@map("sessions")
+}
+
+/// SMS tasdiqlash kodlari. Kodning o'zi emas, faqat HMAC xeshi saqlanadi.
+model VerificationCode {
+  id         String              @id @default(uuid(7)) @db.Uuid
+  /// E.164 formatda: +998901234567
+  phone      String              @db.VarChar(16)
+  purpose    VerificationPurpose
+  codeHash   String              @map("code_hash") @db.VarChar(128)
+  /// Noto'g'ri kiritishlar soni (chegaradan oshsa kod yaroqsiz)
+  attempts   Int                 @default(0)
+  expiresAt  DateTime            @map("expires_at") @db.Timestamptz(3)
+  consumedAt DateTime?           @map("consumed_at") @db.Timestamptz(3)
+  ipAddress  String?             @map("ip_address") @db.VarChar(45)
+  createdAt  DateTime            @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  @@index([phone, purpose, createdAt])
+  @@index([ipAddress, createdAt])
+  @@index([createdAt])
+  @@map("verification_codes")
 }
 
 // ─────────────────────────────── Katalog ───────────────────────────────

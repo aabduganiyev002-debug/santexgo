@@ -2,7 +2,9 @@
 
 Santexnika mahsulotlari (PPR, PVC, PP trubalar, fittinglar, kanalizatsiya, armatura) uchun online do'kon va buyurtma platformasi.
 
-Loyiha bosqichma-bosqich ishlab chiqilmoqda. Hozirgi holat: **1-bosqich tayyor** — loyiha tuzilmasi, infratuzilma, to'liq ma'lumotlar bazasi, namunaviy katalog va API asosi.
+Loyiha bosqichma-bosqich ishlab chiqilmoqda. Hozirgi holat: **2-bosqich tayyor** — ro'yxatdan o'tish (SMS), kirish, parolni tiklash, rollar va himoya.
+
+Platforma qanday tuzilgani (arxitektura, baza, mijoz/admin/buyurtma/chegirma jarayonlari, texnologiyalar): **[docs/ARXITEKTURA.md](docs/ARXITEKTURA.md)**.
 
 ## Tarkib
 
@@ -41,6 +43,7 @@ Tekshirish:
 | `pnpm dev`         | Barcha ilovalarni ishlab chiqish rejimida ishga tushiradi       |
 | `pnpm build`       | Production build                                                |
 | `pnpm check`       | Format, lint, tiplar va testlar — commitdan oldin               |
+| `pnpm test:e2e`    | API'ni haqiqiy baza bilan to'liq sinash (e2e testlar)           |
 | `pnpm db:migrate`  | Sxema o'zgargandan keyin yangi migratsiya yaratadi              |
 | `pnpm db:deploy`   | Migratsiyalarni bazaga qo'llaydi (production ham shu)           |
 | `pnpm db:seed`     | Namunaviy katalog va birinchi admin                             |
@@ -49,9 +52,17 @@ Tekshirish:
 | `pnpm infra:down`  | Docker konteynerlarini to'xtatadi                               |
 | `pnpm infra:reset` | Lokal baza va barcha Docker ma'lumotlarini **o'chiradi**        |
 
+## Kirish va SMS
+
+- Ro'yxatdan o'tish: ism, familiya, telefon, parol → SMS kod → akkaunt yaratiladi va mijoz avtomatik kiradi.
+- Kirish: telefon + parol. Parolni unutganda: SMS kod → yangi parol (boshqa qurilmalardagi sessiyalar yopiladi).
+- **Lokal kompyuterda SMS yuborilmaydi** (`SMS_PROVIDER=console`): kod `pnpm dev` ishlayotgan terminalda `📱 +998...: SantexGo: ... kodi 123456` ko'rinishida chiqadi.
+- Haqiqiy SMS uchun Eskiz.uz: `apps/api/.env` da `SMS_PROVIDER=eskiz`, `ESKIZ_EMAIL`, `ESKIZ_PASSWORD`. SMS matnlari (`apps/api/src/modules/auth/sms-messages.ts`) Eskiz kabinetida shablon sifatida tasdiqlangan bo'lishi kerak.
+- Himoya: parollar Argon2id, sessiya tokenlari httpOnly cookie'da, SMS kod 5 daqiqa / 5 urinish / 60 soniyada bir marta, 10 ta noto'g'ri paroldan keyin raqam 15 daqiqaga bloklanadi, barcha API'ga rate limit, CSRF himoyasi, kunlik SMS limiti.
+
 ## Ma'lumotlar bazasi
 
-Sxema: `apps/api/prisma/schema.prisma` — 30 ta jadval (foydalanuvchilar, katalog, chegirmalar, ombor, savatcha, buyurtmalar, to'lovlar, sharhlar, sozlamalar, audit).
+Sxema: `apps/api/prisma/schema.prisma` — 31 ta jadval (foydalanuvchilar, SMS kodlar, katalog, chegirmalar, ombor, savatcha, buyurtmalar, to'lovlar, sharhlar, sozlamalar, audit).
 
 Muhim qoidalar:
 
@@ -71,7 +82,7 @@ Birinchi admin `apps/api/.env` dagi `ADMIN_PHONE` va `ADMIN_PASSWORD` dan yarati
 ## Ish rejasi
 
 1. ✅ Loyiha tuzilmasi, infratuzilma, ma'lumotlar bazasi, seed, API asosi
-2. Auth: ro'yxatdan o'tish + SMS, login, parolni tiklash, rollar, rate limit
+2. ✅ Auth: ro'yxatdan o'tish + SMS, login, parolni tiklash, rollar, rate limit
 3. Katalog API: brendlar, kategoriyalar, materiallar, xususiyatlar, mahsulotlar, rasmlar
 4. Chegirma va narx moduli
 5. Qidiruv va filtrlar (Meilisearch)

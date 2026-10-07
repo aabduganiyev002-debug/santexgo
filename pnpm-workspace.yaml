@@ -8,6 +8,7 @@ onlyBuiltDependencies:
   - prisma
   - esbuild
 
-# Telemetriya skriptlari ishga tushirilmaydi
+# Telemetriya skriptlari ishga tushirilmaydi; SWC tayyor binar fayl bilan keladi (skript shart emas)
 ignoredBuiltDependencies:
   - '@scarf/scarf'
+  - '@swc/core'

@@ -131,7 +131,7 @@ function checkTools() {
 
 // ─────────────────────────────── .env fayllari ───────────────────────────────
 
-const secret = () => randomBytes(16).toString('hex');
+const secret = (bytes = 16) => randomBytes(bytes).toString('hex');
 
 /** Adashtiradigan belgilarsiz (0/O, 1/l/I) o'qish va yozish oson parol. */
 function readablePassword(length = 14) {
@@ -152,6 +152,41 @@ function fillTemplate(templatePath, values) {
 
 function readEnv(file) {
   return parseEnv(readFileSync(file, 'utf8'));
+}
+
+function redisUrlFrom(infra) {
+  if (!useDocker || !infra.REDIS_PASSWORD) return '';
+  const port = infra.REDIS_PORT || '6379';
+  return `redis://:${encodeURIComponent(infra.REDIS_PASSWORD)}@127.0.0.1:${port}`;
+}
+
+/**
+ * Mavjud .env fayliga yangi bosqichlarda qo'shilgan sozlamalarni qo'shadi.
+ * Foydalanuvchi o'zgartirgan qiymatlarga tegilmaydi: faqat yo'q yoki bo'sh kalitlar to'ldiriladi.
+ */
+function addMissingKeys(file, values) {
+  let content = readFileSync(file, 'utf8');
+  const current = parseEnv(content);
+  const added = [];
+  const appended = [];
+  for (const [key, value] of Object.entries(values)) {
+    if (current[key]) continue;
+    const line = new RegExp(`^${key}=.*$`, 'm');
+    if (line.test(content)) {
+      if (!value) continue;
+      content = content.replace(line, () => `${key}=${value}`);
+    } else {
+      appended.push(`${key}=${value}`);
+    }
+    added.push(key);
+  }
+  if (appended.length > 0) {
+    const eol = content.includes('\r\n') ? '\r\n' : '\n';
+    const separator = content.endsWith('\n') ? '' : eol;
+    content += `${separator}${eol}# Yangi sozlamalar (pnpm setup:local qo'shdi)${eol}${appended.join(eol)}${eol}`;
+  }
+  if (added.length > 0) writeFileSync(file, content);
+  return added;
 }
 
 function databaseUrlFrom(infra) {
@@ -188,7 +223,16 @@ function ensureEnvFiles() {
   }
 
   if (existsSync(API_ENV)) {
-    ok('apps/api/.env mavjud — o‘zgartirilmadi');
+    const added = addMissingKeys(API_ENV, {
+      AUTH_SECRET: secret(32),
+      REDIS_URL: redisUrlFrom(infra),
+      SMS_PROVIDER: 'console',
+    });
+    if (added.length > 0) {
+      ok(`apps/api/.env ga yangi sozlamalar qo‘shildi: ${added.join(', ')}`);
+    } else {
+      ok('apps/api/.env mavjud — o‘zgartirilmadi');
+    }
     checkDatabaseUrl(readEnv(API_ENV), infra);
   } else {
     result.adminPassword = readablePassword();
@@ -197,6 +241,8 @@ function ensureEnvFiles() {
       fillTemplate(API_ENV_EXAMPLE, {
         DATABASE_URL: databaseUrlFrom(infra),
         ADMIN_PASSWORD: result.adminPassword,
+        AUTH_SECRET: secret(32),
+        REDIS_URL: redisUrlFrom(infra),
       }),
     );
     result.adminPhone = readEnv(API_ENV).ADMIN_PHONE ?? null;

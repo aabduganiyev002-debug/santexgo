@@ -15,7 +15,7 @@ env:
 
 jobs:
   check:
-    name: Lint, test, build va migratsiyalar
+    name: Lint, test, build, migratsiyalar va e2e
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
@@ -76,6 +76,9 @@ jobs:
           ADMIN_PHONE: '+998901234567'
           ADMIN_PASSWORD: ci-admin-password-123
         run: pnpm db:seed && pnpm db:seed
+
+      - name: E2E testlar (API + haqiqiy baza)
+        run: pnpm test:e2e
 
   # Foydalanuvchi kompyuteridagi kabi: toza nusxa → "pnpm setup:local" (Docker bilan) → API
   local-setup:

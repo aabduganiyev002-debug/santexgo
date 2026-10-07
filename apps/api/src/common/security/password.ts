@@ -10,9 +10,7 @@ const ARGON2_OPTIONS = {
   parallelism: 1,
 } as const;
 
-export const PASSWORD_MIN_LENGTH = 8;
-export const PASSWORD_MAX_LENGTH = 128;
-/** Admin akkauntlari uchun qattiqroq talab */
+/** Admin akkauntlari uchun qattiqroq talab (mijozlar uchun qoidalar: @santexgo/shared newPasswordSchema) */
 export const ADMIN_PASSWORD_MIN_LENGTH = 10;
 
 export function hashPassword(plain: string): Promise<string> {
