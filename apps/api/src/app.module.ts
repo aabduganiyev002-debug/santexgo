@@ -20,6 +20,7 @@ import { CsrfGuard } from './modules/auth/guards/csrf.guard.js';
 import { RolesGuard } from './modules/auth/guards/roles.guard.js';
 import { CatalogCoreModule } from './modules/catalog/catalog-core.module.js';
 import { CatalogModule } from './modules/catalog/catalog.module.js';
+import { ContentModule } from './modules/content/content.module.js';
 import { HealthModule } from './modules/health/health.module.js';
 import { InventoryModule } from './modules/inventory/inventory.module.js';
 import { PricingModule } from './modules/pricing/pricing.module.js';
@@ -52,6 +53,7 @@ import { PricingModule } from './modules/pricing/pricing.module.js';
     PricingModule,
     InventoryModule,
     CatalogModule,
+    ContentModule,
     AdminModule,
   ],
   providers: [

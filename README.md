@@ -2,7 +2,7 @@
 
 Santexnika mahsulotlari (PPR, PVC, PP trubalar, fittinglar, kanalizatsiya, armatura) uchun online do'kon va buyurtma platformasi.
 
-Loyiha bosqichma-bosqich ishlab chiqilmoqda. Hozirgi holat: **3-bosqich tayyor** — katalog API (filtrlar, qidiruv, mahsulot sahifasi) va admin uchun katalog boshqaruvi (mahsulotlar, rasmlar, brendlar, kategoriyalar, ombor).
+Loyiha bosqichma-bosqich ishlab chiqilmoqda. Hozirgi holat: **4-bosqich tayyor** — backend API to'liq katalog, qidiruv, chegirmalar va sayt kontenti bilan. Keyingi bosqich — mijozlar sayti.
 
 Platforma qanday tuzilgani (arxitektura, baza, mijoz/admin/buyurtma/chegirma jarayonlari, texnologiyalar): **[docs/ARXITEKTURA.md](docs/ARXITEKTURA.md)**.
 
@@ -89,12 +89,24 @@ API hujjati (Swagger) — http://localhost:4000/api/docs, "Katalog" va "Admin: .
 - **Rasmlar** yuklanganda tekshiriladi va WebP formatida 3 o'lchamga (1600/800/400 px) keltiriladi. Standart holatda `apps/api/uploads` papkasida saqlanadi; production'da S3 (Cloudflare R2) ga o'tkazish — `.env` da bir nechta qator.
 - **Admin amallari** (yaratish, tahrirlash, o'chirish, ombor) `audit_logs` jurnaliga yoziladi. Buyurtmalarda bor mahsulot o'chirilmaydi — arxivlanadi.
 
+## Chegirmalar
+
+- Admin foizli (−15%) yoki aniq summali (−10 000 so'm) chegirma yaratadi: boshlanish va tugash sanasi, mahsulot, kategoriya (ichki kategoriyalari bilan) yoki brendga.
+- Bir mahsulotga bir nechta chegirma tegishli bo'lsa — mijoz uchun eng foydalisi qo'llanadi (ustma-ust qo'shilmaydi).
+- Chegirma belgilangan vaqtda o'zi boshlanadi va tugaydi (server har daqiqada tekshiradi).
+- Saytda: asl narx, chegirmali narx, foiz va chegirma tugash vaqti qaytadi.
+- Buyurtmadagi narx "muzlatiladi" — chegirma keyin o'zgarsa ham eski buyurtma summasi o'zgarmaydi.
+
+## Sayt kontenti
+
+Admin bosh sahifa bannerlarini (kompyuter va telefon uchun alohida rasm, muddat), "Material bo'yicha" tugmalarini va do'kon sozlamalarini (telefon, manzil, ish vaqti, yetkazib berish narxi va bepul chegarasi) o'zgartiradi.
+
 ## Ish rejasi
 
 1. ✅ Loyiha tuzilmasi, infratuzilma, ma'lumotlar bazasi, seed, API asosi
 2. ✅ Auth: ro'yxatdan o'tish + SMS, login, parolni tiklash, rollar, rate limit
 3. ✅ Katalog API, qidiruv va filtrlar; admin: mahsulotlar, rasmlar, brendlar, kategoriyalar, materiallar, xususiyatlar, ombor
-4. Chegirmalar moduli: foizli/summali, muddatli, mahsulot/kategoriya/brendga; avtomatik boshlanish va tugash
+4. ✅ Chegirmalar moduli (foizli/summali, muddatli, avtomatik), bannerlar, material tugmalari, sozlamalar
 5. Mijozlar sayti: homepage, katalog, filtrlar, mahsulot sahifasi, kirish, mobil versiya
 6. Savatcha, sevimlilar, checkout, buyurtma va ombor
 7. Shaxsiy kabinet va buyurtmalar tarixi

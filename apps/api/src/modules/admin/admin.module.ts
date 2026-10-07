@@ -12,6 +12,10 @@ import {
   AdminWarehousesController,
 } from './catalog/admin-taxonomy.controller.js';
 import { AdminTaxonomyService } from './catalog/admin-taxonomy.service.js';
+import { AdminContentController } from './content/admin-content.controller.js';
+import { AdminContentService } from './content/admin-content.service.js';
+import { AdminDiscountsController } from './discounts/admin-discounts.controller.js';
+import { AdminDiscountsService } from './discounts/admin-discounts.service.js';
 
 /** Admin panel API'lari: barchasi /api/v1/admin/... va faqat ADMIN roli uchun. */
 @Module({
@@ -23,12 +27,16 @@ import { AdminTaxonomyService } from './catalog/admin-taxonomy.service.js';
     AdminProductGroupsController,
     AdminWarehousesController,
     AdminProductsController,
+    AdminDiscountsController,
+    AdminContentController,
   ],
   providers: [
     AdminBrandsService,
     AdminCategoriesService,
     AdminTaxonomyService,
     AdminProductsService,
+    AdminDiscountsService,
+    AdminContentService,
   ],
 })
 export class AdminModule {}
