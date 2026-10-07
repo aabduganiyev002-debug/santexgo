@@ -2,7 +2,7 @@
 
 Santexnika mahsulotlari (PPR, PVC, PP trubalar, fittinglar, kanalizatsiya, armatura) uchun online do'kon va buyurtma platformasi.
 
-Loyiha bosqichma-bosqich ishlab chiqilmoqda. Hozirgi holat: **7-bosqich tayyor** — mijozlar sayti to'liq: katalog, qidiruv, savatcha, buyurtma berish (ORDER-10254), sevimlilar va shaxsiy kabinet. Keyingi bosqich — admin panel.
+Loyiha bosqichma-bosqich ishlab chiqilmoqda. Hozirgi holat: **8-bosqich tayyor** — mijozlar sayti (katalog, qidiruv, savatcha, buyurtma, kabinet) va admin panel (buyurtmalar, mahsulotlar, ombor, chegirmalar, mijozlar bazasi, kontent). Keyingi bosqich — admin statistika va grafiklar.
 
 Platforma qanday tuzilgani (arxitektura, baza, mijoz/admin/buyurtma/chegirma jarayonlari, texnologiyalar): **[docs/ARXITEKTURA.md](docs/ARXITEKTURA.md)**.
 
@@ -12,8 +12,9 @@ Platforma qanday tuzilgani (arxitektura, baza, mijoz/admin/buyurtma/chegirma jar
 | ----------------- | -------------------------------------------------------------------------------------- |
 | `apps/api`        | Backend API — NestJS 12, Prisma 7, PostgreSQL                                          |
 | `apps/web`        | Mijozlar sayti — Next.js 16, React 19, Tailwind CSS 4                                  |
-| `apps/admin`      | Admin panel — Next.js (9-bosqich)                                                      |
+| `apps/admin`      | Admin panel — Next.js, http://localhost:3001                                           |
 | `packages/shared` | Frontend va backend uchun umumiy kod: narx/chegirma hisobi, statuslar, telefon formati |
+| `packages/ui`     | Sayt va admin panel uchun umumiy UI komponentlar, API klient va dizayn tokenlari       |
 | `docker`          | Lokal infratuzilma: PostgreSQL, Redis (ixtiyoriy: SeaweedFS — S3 sinovi uchun)         |
 
 ## Ishga tushirish
@@ -120,6 +121,18 @@ API hujjati (Swagger) — http://localhost:4000/api/docs, "Katalog" va "Admin: .
 - **Profil va xavfsizlik:** ism-familiya; telefon raqamini yangi raqamga kelgan SMS kod bilan o'zgartirish; parolni o'zgartirish (joriy parol talab qilinadi, boshqa qurilmalardan chiqiladi).
 - Kabinet va checkout sahifalari kirmagan foydalanuvchini kirish sahifasiga yo'naltiradi (kirgandan keyin shu sahifaga qaytadi).
 
+## Admin panel
+
+http://localhost:3001 — faqat ADMIN roli bilan (seed yaratgan admin akkaunt).
+
+- **Buyurtmalar:** statuslar bo'yicha bo'limlar (soni bilan), raqam/telefon/ism bo'yicha qidiruv, sana filtri; yangi buyurtmalar soni menyuda har daqiqada yangilanadi. Buyurtma kartochkasi: mahsulotlar, mijoz (qo'ng'iroq havolasi, buyurtmalar tarixi), manzil, mijoz izohi, holatni o'zgartirish (ombor oqibatlari tushuntiriladi), to'lov holati, ichki izoh, holat tarixi (kim va qachon), chop etish.
+- **Mahsulotlar:** ro'yxat (brend, kategoriya, material, qoldiq, holat filtrlari; saralash), qo'shish va tahrirlash: SKU, narx, birlik, eng kam miqdor, texnik xususiyatlar (kategoriyaga biriktirilganlari avtomatik chiqadi), SEO; rasmlar (bir nechtasi birdan, asosiy rasm, tartib), sertifikatlar (PDF), ombor: kirim, chiqim, inventarizatsiya va harakatlar tarixi; arxivlash/o'chirish.
+- **Kategoriyalar** (daraxt, filtr xususiyatlari, rasm), **brendlar** (logotip, mashhur), **materiallar, xususiyatlar, variant guruhlari**, omborlar.
+- **Chegirmalar:** foiz yoki summa, muddat, ustuvorlik; mahsulot (qidirib), kategoriya va brendlarga; qaysi mahsulotlarga qo'llangani va narxlari.
+- **Mijozlar bazasi:** ism, telefon, buyurtmalar soni, umumiy xarid summasi, oxirgi buyurtma; saralash; mijoz kartochkasi; bloklash.
+- **Bannerlar va bosh sahifa:** slayder (kompyuter va telefon rasmi, muddat), "Material bo'yicha" tugmalari; **sozlamalar:** do'kon aloqalari, yetkazib berish narxi va bepul chegarasi.
+- Barcha o'zgarishlar audit jurnaliga yoziladi. Sayt va admin panel umumiy UI paketidan foydalanadi (`packages/ui`).
+
 ## Chegirmalar
 
 - Admin foizli (−15%) yoki aniq summali (−10 000 so'm) chegirma yaratadi: boshlanish va tugash sanasi, mahsulot, kategoriya (ichki kategoriyalari bilan) yoki brendga.
@@ -141,6 +154,6 @@ Admin bosh sahifa bannerlarini (kompyuter va telefon uchun alohida rasm, muddat)
 5. ✅ Mijozlar sayti: homepage, katalog, filtrlar, qidiruv, mahsulot sahifasi, kirish, mobil versiya
 6. ✅ Savatcha, sevimlilar, checkout, buyurtma va ombor; admin buyurtmalar API'si
 7. ✅ Shaxsiy kabinet: buyurtmalar tarixi va holati, manzillar, profil, parol va telefonni o'zgartirish
-8. Admin panel
+8. ✅ Admin panel: buyurtmalar, mahsulotlar, ombor, kategoriyalar, brendlar, chegirmalar, mijozlar bazasi, bannerlar, sozlamalar
 9. Admin statistika va grafiklar
 10. Xavfsizlik tekshiruvi, serverga deploy, backup

@@ -13,7 +13,7 @@ import { ArrowLeft, RotateCcw } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { type ReactNode, useState } from 'react';
-import { OrderStatusBadge } from '@/components/orders/order-status-badge';
+import { OrderStatusBadge } from '@santexgo/ui/order-status-badge';
 import { OrderTimeline } from '@/components/orders/order-timeline';
 import { Alert } from '@santexgo/ui/alert';
 import { Button } from '@santexgo/ui/button';

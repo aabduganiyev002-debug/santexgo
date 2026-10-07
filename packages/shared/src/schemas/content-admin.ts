@@ -19,7 +19,13 @@ const linkUrl = z
   .transform((value) => value || undefined);
 
 const sortOrder = z.coerce.number().int().min(-100_000).max(100_000).optional();
-const dateOrNull = z.coerce.date({ error: 'Sanani to‘g‘ri kiriting' }).nullable().optional();
+/** multipart formada bo'sh maydon ('') — sana olib tashlanadi (null) */
+const dateOrNull = z
+  .preprocess(
+    (value) => (value === '' ? null : value),
+    z.coerce.date({ error: 'Sanani to‘g‘ri kiriting' }).nullable(),
+  )
+  .optional();
 
 // ─────────────────────────────── Bannerlar ───────────────────────────────
 

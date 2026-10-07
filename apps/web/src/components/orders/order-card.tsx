@@ -2,7 +2,7 @@ import type { OrderSummaryView } from '@santexgo/shared';
 import { ChevronRight, Package } from 'lucide-react';
 import Link from 'next/link';
 import { formatDateTime, formatSom } from '@santexgo/ui/format';
-import { OrderStatusBadge } from './order-status-badge';
+import { OrderStatusBadge } from '@santexgo/ui/order-status-badge';
 
 /** Buyurtmalar ro'yxatidagi kartochka: raqam, sana, holat, mahsulot rasmlari, summa. */
 export function OrderCard({ order }: { order: OrderSummaryView }) {

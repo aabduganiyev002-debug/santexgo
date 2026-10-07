@@ -31,6 +31,8 @@ const API_ENV = path.join(ROOT, 'apps', 'api', '.env');
 const API_ENV_EXAMPLE = path.join(ROOT, 'apps', 'api', '.env.example');
 const WEB_ENV = path.join(ROOT, 'apps', 'web', '.env');
 const WEB_ENV_EXAMPLE = path.join(ROOT, 'apps', 'web', '.env.example');
+const ADMIN_ENV = path.join(ROOT, 'apps', 'admin', '.env');
+const ADMIN_ENV_EXAMPLE = path.join(ROOT, 'apps', 'admin', '.env.example');
 const COMPOSE = 'docker compose --env-file .env -f docker/docker-compose.yml';
 const MIN_NODE = { major: 22, minor: 12 };
 const PNPM_INSTALL_HINT =
@@ -256,6 +258,13 @@ function ensureEnvFiles() {
     writeFileSync(WEB_ENV, readFileSync(WEB_ENV_EXAMPLE, 'utf8'));
     ok('apps/web/.env yaratildi');
   }
+
+  if (existsSync(ADMIN_ENV)) {
+    ok('apps/admin/.env mavjud — o‘zgartirilmadi');
+  } else {
+    writeFileSync(ADMIN_ENV, readFileSync(ADMIN_ENV_EXAMPLE, 'utf8'));
+    ok('apps/admin/.env yaratildi');
+  }
   return result;
 }
 
@@ -325,6 +334,7 @@ function main() {
   console.log(`\n${green(bold('✔ Hammasi tayyor!'))}\n`);
   console.log(`  Ishga tushirish:         ${bold('pnpm dev')}`);
   console.log(`  So‘ng brauzerda oching:  ${cyan('http://localhost:3000')}  (sayt)`);
+  console.log(`                           ${cyan('http://localhost:3001')}  (admin panel)`);
   console.log(
     `                           ${cyan('http://localhost:4000/api/docs')}  (API hujjati)`,
   );

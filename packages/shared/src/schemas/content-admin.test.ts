@@ -32,3 +32,12 @@ describe('banner va sozlamalar', () => {
     );
   });
 });
+
+describe('banner sanalari', () => {
+  it('bo‘sh maydon — sana olib tashlanadi, berilmasa — o‘zgarmaydi', () => {
+    expect(bannerInputSchema.parse({ endsAt: '' }).endsAt).toBeNull();
+    expect(bannerInputSchema.parse({}).endsAt).toBeUndefined();
+    expect(bannerInputSchema.parse({ endsAt: '2026-11-01T00:00:00Z' }).endsAt).toBeInstanceOf(Date);
+    expect(bannerInputSchema.safeParse({ endsAt: 'ertaga' }).success).toBe(false);
+  });
+});

@@ -17,6 +17,7 @@
     "./form-errors": "./src/form-errors.ts",
     "./format": "./src/format.ts",
     "./modal": "./src/modal.tsx",
+    "./order-status-badge": "./src/order-status-badge.tsx",
     "./password-input": "./src/password-input.tsx",
     "./phone-input": "./src/phone-input.tsx",
     "./skeleton": "./src/skeleton.tsx",

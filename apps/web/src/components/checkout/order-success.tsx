@@ -9,7 +9,7 @@ import {
 import { useQuery } from '@tanstack/react-query';
 import { CheckCircle2, Copy, Phone } from 'lucide-react';
 import Link from 'next/link';
-import { OrderStatusBadge } from '@/components/orders/order-status-badge';
+import { OrderStatusBadge } from '@santexgo/ui/order-status-badge';
 import { Alert } from '@santexgo/ui/alert';
 import { buttonClass } from '@santexgo/ui/button';
 import { Skeleton } from '@santexgo/ui/skeleton';

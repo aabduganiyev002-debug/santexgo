@@ -139,6 +139,19 @@ jobs:
           code=$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:3000/products/mavjud-emas)
           test "$code" = "404" || { cat web.log; exit 1; }
 
+      - name: Admin panel ishga tushadi
+        run: |
+          pnpm --filter @santexgo/admin build
+          cd apps/admin
+          node_modules/.bin/next start --port 3001 > admin.log 2>&1 &
+          for i in $(seq 1 30); do
+            if curl -sf -o /dev/null http://127.0.0.1:3001/login; then break; fi
+            sleep 2
+          done
+          curl -sf http://127.0.0.1:3001/login | grep -q 'SantexGo Admin'
+          # Kirmagan foydalanuvchi kirish sahifasiga yo'naltiriladi
+          curl -s -o /dev/null -w '%{redirect_url}' http://127.0.0.1:3001/orders | grep -q '/login?next=%2Forders' || { cat admin.log; exit 1; }
+
       - name: Xizmatlar loglari (xato bo'lsa)
         if: failure()
         run: docker compose --env-file .env -f docker/docker-compose.yml logs --tail 50

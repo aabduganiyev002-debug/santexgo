@@ -1,5 +1,5 @@
 import { ORDER_STATUS_LABELS, type OrderStatus } from '@santexgo/shared';
-import { cn } from '@santexgo/ui/cn';
+import { cn } from './cn';
 
 const TONES: Record<OrderStatus, string> = {
   RECEIVED: 'bg-brand-50 text-brand-700',
