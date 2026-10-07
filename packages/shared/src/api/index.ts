@@ -6,3 +6,4 @@ export * from './content.js';
 export * from './errors.js';
 export * from './orders.js';
 export * from './admin-customers.js';
+export * from './admin-stats.js';

@@ -21,6 +21,8 @@ import { AdminDiscountsController } from './discounts/admin-discounts.controller
 import { AdminDiscountsService } from './discounts/admin-discounts.service.js';
 import { AdminOrdersController } from './orders/admin-orders.controller.js';
 import { AdminOrdersService } from './orders/admin-orders.service.js';
+import { AdminStatsController } from './stats/admin-stats.controller.js';
+import { AdminStatsService } from './stats/admin-stats.service.js';
 
 /** Admin panel API'lari: barchasi /api/v1/admin/... va faqat ADMIN roli uchun. */
 @Module({
@@ -37,6 +39,7 @@ import { AdminOrdersService } from './orders/admin-orders.service.js';
     AdminContentController,
     AdminOrdersController,
     AdminCustomersController,
+    AdminStatsController,
   ],
   providers: [
     AdminBrandsService,
@@ -47,6 +50,7 @@ import { AdminOrdersService } from './orders/admin-orders.service.js';
     AdminContentService,
     AdminOrdersService,
     AdminCustomersService,
+    AdminStatsService,
   ],
 })
 export class AdminModule {}

@@ -2,7 +2,7 @@
 
 Santexnika mahsulotlari (PPR, PVC, PP trubalar, fittinglar, kanalizatsiya, armatura) uchun online do'kon va buyurtma platformasi.
 
-Loyiha bosqichma-bosqich ishlab chiqilmoqda. Hozirgi holat: **8-bosqich tayyor** — mijozlar sayti (katalog, qidiruv, savatcha, buyurtma, kabinet) va admin panel (buyurtmalar, mahsulotlar, ombor, chegirmalar, mijozlar bazasi, kontent). Keyingi bosqich — admin statistika va grafiklar.
+Loyiha bosqichma-bosqich ishlab chiqilmoqda. Hozirgi holat: **9-bosqich tayyor** — mijozlar sayti (katalog, qidiruv, savatcha, buyurtma, kabinet) va admin panel (statistika va grafiklar, buyurtmalar, mahsulotlar, ombor, chegirmalar, mijozlar bazasi, kontent). Keyingi bosqich — xavfsizlik tekshiruvi va serverga deploy.
 
 Platforma qanday tuzilgani (arxitektura, baza, mijoz/admin/buyurtma/chegirma jarayonlari, texnologiyalar): **[docs/ARXITEKTURA.md](docs/ARXITEKTURA.md)**.
 
@@ -125,6 +125,7 @@ API hujjati (Swagger) — http://localhost:4000/api/docs, "Katalog" va "Admin: .
 
 http://localhost:3001 — faqat ADMIN roli bilan (seed yaratgan admin akkaunt).
 
+- **Bosh sahifa (statistika):** bugungi buyurtmalar va savdo (kechaga nisbatan), shu oy savdosi (o'tgan oyning shu kunlariga nisbatan), tasdiqlanmagan buyurtmalar, mijozlar soni; davr (7/30/90 kun, 12 oy) bo'yicha savdo grafigi (tooltip, klaviatura, jadval ko'rinishi), buyurtmalar holati, eng ko'p sotilgan mahsulotlar va brendlar, eng ko'p xarid qilgan mijozlar, ombor holati (yetarli / kam / yo'q). Savdo — bekor qilinmagan buyurtmalar summasi, do'kon vaqt zonasida (Asia/Tashkent).
 - **Buyurtmalar:** statuslar bo'yicha bo'limlar (soni bilan), raqam/telefon/ism bo'yicha qidiruv, sana filtri; yangi buyurtmalar soni menyuda har daqiqada yangilanadi. Buyurtma kartochkasi: mahsulotlar, mijoz (qo'ng'iroq havolasi, buyurtmalar tarixi), manzil, mijoz izohi, holatni o'zgartirish (ombor oqibatlari tushuntiriladi), to'lov holati, ichki izoh, holat tarixi (kim va qachon), chop etish.
 - **Mahsulotlar:** ro'yxat (brend, kategoriya, material, qoldiq, holat filtrlari; saralash), qo'shish va tahrirlash: SKU, narx, birlik, eng kam miqdor, texnik xususiyatlar (kategoriyaga biriktirilganlari avtomatik chiqadi), SEO; rasmlar (bir nechtasi birdan, asosiy rasm, tartib), sertifikatlar (PDF), ombor: kirim, chiqim, inventarizatsiya va harakatlar tarixi; arxivlash/o'chirish.
 - **Kategoriyalar** (daraxt, filtr xususiyatlari, rasm), **brendlar** (logotip, mashhur), **materiallar, xususiyatlar, variant guruhlari**, omborlar.
@@ -155,5 +156,5 @@ Admin bosh sahifa bannerlarini (kompyuter va telefon uchun alohida rasm, muddat)
 6. ✅ Savatcha, sevimlilar, checkout, buyurtma va ombor; admin buyurtmalar API'si
 7. ✅ Shaxsiy kabinet: buyurtmalar tarixi va holati, manzillar, profil, parol va telefonni o'zgartirish
 8. ✅ Admin panel: buyurtmalar, mahsulotlar, ombor, kategoriyalar, brendlar, chegirmalar, mijozlar bazasi, bannerlar, sozlamalar
-9. Admin statistika va grafiklar
+9. ✅ Admin statistika va grafiklar
 10. Xavfsizlik tekshiruvi, serverga deploy, backup

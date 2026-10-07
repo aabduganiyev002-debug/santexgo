@@ -3,6 +3,13 @@
 @import '@santexgo/ui/theme.css';
 @source '../../../../packages/ui/src';
 
+/* Grid ustunlari ichidagi keng jadval yoki uzun matn sahifani kengaytirib yubormasin */
+@layer base {
+  .grid > * {
+    min-width: 0;
+  }
+}
+
 /* Admin panel: zichroq jadvallar, raqamlar tekis */
 @layer components {
   .admin-table {
@@ -17,4 +24,23 @@
   .admin-table tbody tr {
     @apply transition-colors hover:bg-slate-50/70;
   }
+}
+
+/*
+ * Grafik ranglari (dataviz palitrasi, oq kartochka foniga tekshirilgan):
+ * bitta seriya — 1-slot ko'k; status — faqat ikon + matn bilan birga.
+ */
+.viz-root {
+  --viz-surface: #ffffff;
+  --viz-text-primary: #0b0b0b;
+  --viz-text-secondary: #52514e;
+  --viz-text-muted: #898781;
+  --viz-grid: #e1e0d9;
+  --viz-axis: #c3c2b7;
+  --viz-series-1: #2a78d6;
+  --viz-status-good: #0ca30c;
+  --viz-status-warning: #fab219;
+  --viz-status-critical: #d03b3b;
+  --viz-delta-up: #006300;
+  --viz-delta-down: #d03b3b;
 }
