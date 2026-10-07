@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/cn';
 import { AddToCartButton } from './add-to-cart-button';
+import { FavoriteButton } from './favorite-button';
 import { Price } from './price';
 import { ProductImage } from './product-image';
 import { StockLabel } from './stock-label';
@@ -46,6 +47,11 @@ export function ProductCard({
           {product.isNew ? <Badge tone="new">Yangi</Badge> : null}
         </div>
       </Link>
+      <FavoriteButton
+        productId={product.id}
+        productName={product.name}
+        className="absolute right-2 top-2 z-10"
+      />
 
       <div className="flex flex-1 flex-col gap-2 border-t border-slate-100 p-3">
         <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">

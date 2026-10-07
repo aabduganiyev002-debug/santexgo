@@ -74,22 +74,26 @@ export function cookieValue(setCookie: string[] | string | undefined, name: stri
 
 export const VALID_PASSWORD = 'Parol12345';
 
-/** Bazada admin yaratib, u bilan kirgan agent (cookie'lar ichida). */
-export async function createAdminAgent(ctx: TestContext) {
+/** Bazada foydalanuvchi yaratib, u bilan kirgan agent (cookie'lar ichida). */
+export async function createUserAgent(ctx: TestContext, role: 'ADMIN' | 'CUSTOMER') {
   const phone = randomPhone(ctx);
-  await ctx.prisma.user.create({
+  const user = await ctx.prisma.user.create({
     data: {
       firstName: 'E2E',
-      lastName: 'Admin',
+      lastName: role === 'ADMIN' ? 'Admin' : 'Mijoz',
       phone,
       passwordHash: await hashPassword(VALID_PASSWORD),
-      role: 'ADMIN',
+      role,
       phoneVerifiedAt: new Date(),
     },
   });
   const agent = supertest.agent(ctx.app.getHttpServer());
   await agent.post('/api/v1/auth/login').send({ phone, password: VALID_PASSWORD }).expect(200);
-  return agent;
+  return Object.assign(agent, { userId: user.id, phone });
+}
+
+export function createAdminAgent(ctx: TestContext) {
+  return createUserAgent(ctx, 'ADMIN');
 }
 
 /** Testlar bir-biriga xalaqit bermasligi uchun nomlarga qo'shiladigan tasodifiy qism. */

@@ -2,7 +2,7 @@
 
 Santexnika mahsulotlari (PPR, PVC, PP trubalar, fittinglar, kanalizatsiya, armatura) uchun online do'kon va buyurtma platformasi.
 
-Loyiha bosqichma-bosqich ishlab chiqilmoqda. Hozirgi holat: **5-bosqich tayyor** — mijozlar sayti: bosh sahifa, katalog va filtrlar, qidiruv, brendlar, mahsulot sahifasi, kirish va ro'yxatdan o'tish (kompyuter, planshet va telefon uchun).
+Loyiha bosqichma-bosqich ishlab chiqilmoqda. Hozirgi holat: **6-bosqich tayyor** — savatcha, sevimlilar, buyurtma berish (ORDER-10254), ombordagi qoldiqning avtomatik kamayishi va admin uchun buyurtma statuslarini boshqarish API'si.
 
 Platforma qanday tuzilgani (arxitektura, baza, mijoz/admin/buyurtma/chegirma jarayonlari, texnologiyalar): **[docs/ARXITEKTURA.md](docs/ARXITEKTURA.md)**.
 
@@ -101,6 +101,17 @@ API hujjati (Swagger) — http://localhost:4000/api/docs, "Katalog" va "Admin: .
 - **SEO:** har bir sahifa uchun sarlavha va tavsif, Google uchun tuzilgan ma'lumotlar (Product, BreadcrumbList), `sitemap.xml`, `robots.txt`.
 - **Telefon:** pastki menyu (Bosh sahifa, Katalog, Brendlar, Savatcha, Kabinet), doim ko'rinadigan qidiruv.
 
+## Savatcha va buyurtmalar
+
+- **Savatcha** kirmagan mijoz uchun brauzerda saqlanadi; kirgandan keyin akkauntga qo'shiladi va telefon/kompyuterda bir xil bo'ladi. Narx, chegirma, qoldiq va yetkazib berish narxini har doim server hisoblaydi. Qoldiq yetmasa yoki mahsulot sotuvdan olinsa — savatchada aniq ko'rsatiladi ("Omborda faqat 5 dona qoldi" + "5 tani qoldirish").
+- **Buyurtma berish:** ism, familiya, telefon, yetkazib berish yoki do'kondan olib ketish, manzil (saqlangan yoki yangi), to'lov turi (naqd / yetkazilganda karta; Click, Payme, Uzum — keyingi bosqichlarda), izoh. Natija: `ORDER-10254` raqamli buyurtma.
+- **Ishonchlilik:** hammasi bitta tranzaksiyada — qoldiq qulflanib tekshiriladi (oxirgi dona uchun ikki mijoz bir vaqtda bossa, faqat bittasi oladi), narxlar buyurtmada "muzlatiladi", tugma ikki marta bosilsa ham bitta buyurtma yaratiladi, ekrandagi summa o'zgargan bo'lsa mijoz ogohlantiriladi.
+- **Ombor:** omborda 450 dona, mijoz 10 dona buyurtma qilsa — saytda darhol "440" ko'rinadi (band qilinadi). Buyurtma yo'lga chiqqanda jismoniy qoldiq kamayadi; bekor qilinsa — band bo'shaydi, yo'lga chiqqan bo'lsa mahsulot omborga qaytadi. Har bir harakat buyurtma raqami bilan tarixga yoziladi.
+- **Statuslar:** Buyurtma qabul qilindi → Tasdiqlanmoqda → Tayyorlanmoqda → Yetkazib berilmoqda → Yetkazildi (yoki Bekor qilindi). Admin oraliq bosqichni o'tkazib yuborishi mumkin (masalan, olib ketishda). Mijoz buyurtmani tayyorlanishidan oldin o'zi bekor qila oladi. "Yetkazildi" bo'lganda naqd/karta to'lovi "to'langan" bo'ladi va mahsulotning sotilganlar soni oshadi.
+- **Himoya:** bitta mijozda tasdiqlanmagan buyurtmalar soni cheklangan (soxta buyurtmalar bilan omborni band qilib qo'yishdan), buyurtma berish so'rovlari soni cheklangan.
+- **SMS xabarnoma** (ixtiyoriy, `ORDER_SMS_ENABLED=true`): buyurtma qabul qilindi, yo'lga chiqdi, yetkazildi, bekor qilindi.
+- **Sevimlilar:** mahsulot kartochkasidagi yurakcha, `/favorites` sahifasi.
+
 ## Chegirmalar
 
 - Admin foizli (−15%) yoki aniq summali (−10 000 so'm) chegirma yaratadi: boshlanish va tugash sanasi, mahsulot, kategoriya (ichki kategoriyalari bilan) yoki brendga.
@@ -120,7 +131,7 @@ Admin bosh sahifa bannerlarini (kompyuter va telefon uchun alohida rasm, muddat)
 3. ✅ Katalog API, qidiruv va filtrlar; admin: mahsulotlar, rasmlar, brendlar, kategoriyalar, materiallar, xususiyatlar, ombor
 4. ✅ Chegirmalar moduli (foizli/summali, muddatli, avtomatik), bannerlar, material tugmalari, sozlamalar
 5. ✅ Mijozlar sayti: homepage, katalog, filtrlar, qidiruv, mahsulot sahifasi, kirish, mobil versiya
-6. Savatcha, sevimlilar, checkout, buyurtma va ombor
+6. ✅ Savatcha, sevimlilar, checkout, buyurtma va ombor; admin buyurtmalar API'si
 7. Shaxsiy kabinet va buyurtmalar tarixi
 8. Admin panel
 9. Admin statistika va grafiklar

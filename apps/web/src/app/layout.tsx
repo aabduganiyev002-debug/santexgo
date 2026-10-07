@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 import { connection } from 'next/server';
 import type { ReactNode } from 'react';
+import { CartSync } from '@/components/cart/cart-sync';
 import { Footer } from '@/components/layout/footer';
 import { Header } from '@/components/layout/header';
 import { MobileNav } from '@/components/layout/mobile-nav';
@@ -54,6 +55,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
           <Footer categories={categories} brands={brands} settings={settings} />
           <MobileNav />
           <Toaster />
+          <CartSync />
         </Providers>
       </body>
     </html>

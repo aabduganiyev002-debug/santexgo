@@ -33,6 +33,14 @@ export const API_ERROR_CODES = [
   'INVALID_REFERENCE',
   'FILE_INVALID',
   'STOCK_INSUFFICIENT',
+  // Savatcha va buyurtmalar
+  'CART_EMPTY',
+  'CART_CHANGED',
+  'PRICE_CHANGED',
+  'ORDER_STATUS_INVALID',
+  'ORDER_NOT_CANCELLABLE',
+  'PAYMENT_METHOD_UNAVAILABLE',
+  'ORDER_LIMIT_REACHED',
 ] as const;
 export type ApiErrorCode = (typeof API_ERROR_CODES)[number];
 

@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { unitLabel } from '@/lib/format';
 import { useCart } from '@/lib/stores/cart';
 import { toast } from '@/lib/stores/toast';
+import { FavoriteButton } from './favorite-button';
 import { QuantityStepper } from './quantity-stepper';
 
 /** Miqdor, "Savatchaga qo'shish" va "Hozir sotib olish". */
@@ -23,8 +24,11 @@ export function ProductPurchase({ product }: { product: ProductDetail }) {
 
   if (!product.stock.inStock) {
     return (
-      <div className="rounded-xl bg-slate-100 px-4 py-3 text-sm text-slate-600">
-        Hozircha sotuvda yo‘q. Telefon orqali buyurtma bering — keltirib berish muddatini aytamiz.
+      <div className="flex items-start gap-3">
+        <div className="flex-1 rounded-xl bg-slate-100 px-4 py-3 text-sm text-slate-600">
+          Hozircha sotuvda yo‘q. Telefon orqali buyurtma bering — keltirib berish muddatini aytamiz.
+        </div>
+        <FavoriteButton productId={product.id} productName={product.name} variant="outline" />
       </div>
     );
   }
@@ -46,7 +50,7 @@ export function ProductPurchase({ product }: { product: ProductDetail }) {
           {inCartQuantity > 0 ? ` · savatchada ${inCartQuantity}` : ''}
         </span>
       </div>
-      <div className="grid gap-2 sm:grid-cols-2">
+      <div className="grid grid-cols-[1fr_auto] gap-2 sm:grid-cols-[1fr_1fr_auto]">
         <Button
           size="lg"
           disabled={!canAdd}
@@ -58,12 +62,19 @@ export function ProductPurchase({ product }: { product: ProductDetail }) {
           <ShoppingCart className="h-5 w-5" aria-hidden="true" />
           Savatchaga qo‘shish
         </Button>
+        <FavoriteButton
+          productId={product.id}
+          productName={product.name}
+          variant="outline"
+          className="sm:order-last"
+        />
         <Button
           size="lg"
           variant="outline"
+          className="col-span-2 sm:col-span-1"
           onClick={() => {
             if (canAdd) add(product, Math.min(quantity, max));
-            router.push('/cart');
+            router.push('/checkout');
           }}
         >
           <Zap className="h-5 w-5" aria-hidden="true" />

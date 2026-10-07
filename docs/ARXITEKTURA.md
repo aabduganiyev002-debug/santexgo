@@ -225,16 +225,16 @@ sequenceDiagram
 
 **Statuslar va ombor:**
 
-| Status                    | Kim o'zgartiradi                    | Ombor                                                   |
-| ------------------------- | ----------------------------------- | ------------------------------------------------------- |
-| 1. Buyurtma qabul qilindi | Avtomatik                           | Qoldiq **band qilinadi**: sotuvda 450 → 440             |
-| 2. Tasdiqlanmoqda         | Admin                               | —                                                       |
-| 3. Tayyorlanmoqda         | Admin                               | —                                                       |
-| 4. Yetkazib berilmoqda    | Admin                               | Mahsulot ombordan **chiqadi** (jismoniy qoldiq ham 440) |
-| 5. Yetkazildi             | Admin                               | Sotilganlar soni oshadi ("Eng ko'p sotilganlar" uchun)  |
-| 6. Bekor qilindi          | Admin yoki mijoz (faqat 1-statusda) | Band qilingan qoldiq **qaytariladi**: 440 → 450         |
+| Status                    | Kim o'zgartiradi                | Ombor                                                   |
+| ------------------------- | ------------------------------- | ------------------------------------------------------- |
+| 1. Buyurtma qabul qilindi | Avtomatik                       | Qoldiq **band qilinadi**: sotuvda 450 → 440             |
+| 2. Tasdiqlanmoqda         | Admin                           | —                                                       |
+| 3. Tayyorlanmoqda         | Admin                           | —                                                       |
+| 4. Yetkazib berilmoqda    | Admin                           | Mahsulot ombordan **chiqadi** (jismoniy qoldiq ham 440) |
+| 5. Yetkazildi             | Admin                           | Sotilganlar soni oshadi ("Eng ko'p sotilganlar" uchun)  |
+| 6. Bekor qilindi          | Admin yoki mijoz (1–2-statusda) | Band qilingan qoldiq **qaytariladi**: 440 → 450         |
 
-Status faqat oldinga yuradi; yo'lga chiqqan buyurtmani bekor qilib bo'lmaydi. Har bir o'zgarish `order_status_history` ga yoziladi va mijoz kabinetida ko'rinadi.
+Status faqat oldinga yuradi; admin oraliq bosqichni o'tkazib yuborishi mumkin (masalan, do'kondan olib ketishda "Tayyorlanmoqda" → "Yetkazildi") — o'tkazib yuborilgan bosqichning ombor amali ham bajariladi. Yo'lga chiqqan buyurtmani faqat admin bekor qiladi (mijoz qabul qilmadi) — mahsulot omborga **qaytadi**. Qaysi omborda qancha band qilingani alohida saqlanmaydi: u `inventory_movements` tarixidan (buyurtma ID bo'yicha) hisoblanadi. Har bir o'zgarish `order_status_history` ga yoziladi va mijoz kabinetida ko'rinadi.
 
 ---
 

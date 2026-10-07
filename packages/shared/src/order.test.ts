@@ -15,17 +15,21 @@ describe('buyurtma statuslari', () => {
     }
   });
 
-  it('status faqat oldinga yuradi', () => {
+  it('status faqat oldinga yuradi, oraliq bosqichni o‘tkazib yuborish mumkin', () => {
     expect(canTransitionOrderStatus('RECEIVED', 'CONFIRMING')).toBe(true);
     expect(canTransitionOrderStatus('PREPARING', 'DELIVERING')).toBe(true);
     expect(canTransitionOrderStatus('DELIVERING', 'DELIVERED')).toBe(true);
+    expect(canTransitionOrderStatus('PREPARING', 'DELIVERED')).toBe(true);
     expect(canTransitionOrderStatus('DELIVERED', 'RECEIVED')).toBe(false);
-    expect(canTransitionOrderStatus('RECEIVED', 'DELIVERED')).toBe(false);
+    expect(canTransitionOrderStatus('DELIVERING', 'PREPARING')).toBe(false);
+    expect(canTransitionOrderStatus('RECEIVED', 'RECEIVED')).toBe(false);
   });
 
-  it('yo‘lga chiqqan buyurtmani bekor qilib bo‘lmaydi', () => {
+  it('yetkazilgan yoki bekor qilingan buyurtma o‘zgarmaydi', () => {
     expect(canTransitionOrderStatus('PREPARING', 'CANCELLED')).toBe(true);
-    expect(canTransitionOrderStatus('DELIVERING', 'CANCELLED')).toBe(false);
+    expect(canTransitionOrderStatus('DELIVERING', 'CANCELLED')).toBe(true);
+    expect(canTransitionOrderStatus('DELIVERED', 'CANCELLED')).toBe(false);
+    expect(canTransitionOrderStatus('CANCELLED', 'RECEIVED')).toBe(false);
   });
 
   it('yakuniy statuslar', () => {

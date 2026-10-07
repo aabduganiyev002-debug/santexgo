@@ -93,6 +93,8 @@ export const envSchema = z
     ESKIZ_PASSWORD: optional(z.string().min(1)),
     /** Bir kunda yuboriladigan SMS'lar soni chegarasi (SMS balansini himoya qilish uchun) */
     SMS_DAILY_LIMIT: z.coerce.number().int().min(1).default(2000),
+    /** Buyurtma holati haqida mijozga SMS (qabul qilindi, yo'lga chiqdi, yetkazildi, bekor qilindi) */
+    ORDER_SMS_ENABLED: z.stringbool().default(false),
   })
   .superRefine((env, ctx) => {
     if (env.SMS_PROVIDER === 'eskiz' && (!env.ESKIZ_EMAIL || !env.ESKIZ_PASSWORD)) {

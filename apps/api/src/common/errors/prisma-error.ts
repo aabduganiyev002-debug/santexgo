@@ -51,3 +51,20 @@ export function uniqueViolationTarget(error: unknown): string[] {
   )?.cause?.constraint?.fields;
   return Array.isArray(fields) ? fields.map((f) => String(f).replace(/"/g, '')) : [];
 }
+
+export function isUniqueViolation(error: unknown): boolean {
+  return prismaCode(error) === 'P2002';
+}
+
+/**
+ * Bir vaqtda kelgan ikki so'rov bir xil yozuvni yaratmoqchi bo'lsa, ikkinchisi unique
+ * xatosini oladi — bunday holatda amal bir marta qayta bajariladi (endi yozuv mavjud).
+ */
+export async function retryOnUniqueViolation<T>(operation: () => Promise<T>): Promise<T> {
+  try {
+    return await operation();
+  } catch (error) {
+    if (!isUniqueViolation(error)) throw error;
+    return operation();
+  }
+}
