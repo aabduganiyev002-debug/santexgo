@@ -1,0 +1,54 @@
+# SantexGo — Caddy: avtomatik HTTPS (Let's Encrypt), HTTP→HTTPS, siqish va so'rovlarni taqsimlash.
+# Domenlar docker/.env.production dan olinadi: SITE_DOMAIN, ADMIN_DOMAIN, ACME_EMAIL.
+#
+#   https://SITE_DOMAIN/api/*   → API (4000)        https://SITE_DOMAIN/*   → sayt (3000)
+#   https://ADMIN_DOMAIN/api/*  → API (4000)        https://ADMIN_DOMAIN/*  → admin panel (3001)
+#   https://www.SITE_DOMAIN/*   → https://SITE_DOMAIN/* (301)
+{
+	email {$ACME_EMAIL}
+	# *.localhost kabi ichki sertifikatlarda tizim ishonch ro'yxatiga yozishga urinmaslik
+	skip_install_trust
+}
+
+(common) {
+	encode zstd gzip
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options nosniff
+		-Server
+		-X-Powered-By
+	}
+	log {
+		output stdout
+		format json
+	}
+}
+
+{$SITE_DOMAIN} {
+	import common
+
+	# Admin API faqat admin domeni orqali: saytdagi biror zaiflik admin cookie'lari bilan
+	# boshqaruv so'rovlarini yubora olmaydi
+	@adminApi path_regexp (?i)^/+api/+v[0-9]+/+admin(/|$)
+
+	route {
+		respond @adminApi 404
+		reverse_proxy /api/* api:4000
+		reverse_proxy web:3000
+	}
+}
+
+www.{$SITE_DOMAIN} {
+	redir https://{$SITE_DOMAIN}{uri} permanent
+}
+
+{$ADMIN_DOMAIN} {
+	import common
+
+	handle /api/* {
+		reverse_proxy api:4000
+	}
+	handle {
+		reverse_proxy admin:3001
+	}
+}

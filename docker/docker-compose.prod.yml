@@ -1,0 +1,229 @@
+# SantexGo — production: bitta serverda to'liq tizim (sayt, admin panel, API, baza, backup).
+#
+# Boshqarish skripti orqali (tavsiya etiladi, docs/DEPLOY.md):
+#   sh scripts/prod.sh deploy
+# Yoki to'g'ridan-to'g'ri (loyiha ildizidan):
+#   docker compose -f docker/docker-compose.prod.yml --env-file docker/.env.production up -d --build
+#
+# Tarmoq: tashqariga faqat Caddy ochiq (80/443, avtomatik HTTPS). Baza va Redis ichki "backend"
+# tarmog'ida — internetga chiqa olmaydi va internetdan ko'rinmaydi.
+
+name: santexgo-prod
+
+x-service: &service
+  restart: unless-stopped
+  init: true
+  security_opt:
+    - no-new-privileges:true
+  logging:
+    driver: json-file
+    options:
+      max-size: 10m
+      max-file: '5'
+
+x-database-url: &database-url postgresql://${POSTGRES_USER:-santexgo}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD .env.production da berilishi shart}@postgres:5432/${POSTGRES_DB:-santexgo}
+
+services:
+  postgres:
+    <<: *service
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-santexgo}
+      POSTGRES_USER: ${POSTGRES_USER:-santexgo}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD .env.production da berilishi shart}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    shm_size: 256mb
+    # Baza to'xtashdan oldin ma'lumotlarni diskka yozib ulguradi
+    stop_grace_period: 1m
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}"']
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    networks: [backend]
+
+  redis:
+    <<: *service
+    image: redis:8-alpine
+    command:
+      - redis-server
+      - --appendonly
+      - 'yes'
+      - --maxmemory
+      - 256mb
+      - --maxmemory-policy
+      - volatile-lru
+      - --requirepass
+      - ${REDIS_PASSWORD:?REDIS_PASSWORD .env.production da berilishi shart}
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ['CMD-SHELL', 'redis-cli -a "$${REDIS_PASSWORD}" --no-auth-warning ping | grep -q PONG']
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    networks: [backend]
+
+  # Bir martalik: har deploy'da bazaga yangi migratsiyalarni qo'llaydi, keyin API ishga tushadi.
+  # Seed (ma'lumotnomalar, admin): sh scripts/prod.sh seed | admin
+  migrate:
+    <<: *service
+    restart: 'no'
+    build:
+      context: ..
+      dockerfile: apps/api/Dockerfile
+      target: migrate
+      tags: ['santexgo-migrate:${IMAGE_TAG:-latest}']
+    image: santexgo-migrate:latest
+    environment:
+      DATABASE_URL: *database-url
+      SEED_SAMPLE_PRODUCTS: ${SEED_SAMPLE_PRODUCTS:-false}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks: [backend]
+
+  api:
+    <<: *service
+    build:
+      context: ..
+      dockerfile: apps/api/Dockerfile
+      target: runner
+      tags: ['santexgo-api:${IMAGE_TAG:-latest}']
+    image: santexgo-api:latest
+    # Kod o'zgarmas: yozish faqat uploads hajmiga va vaqtinchalik /tmp ga
+    read_only: true
+    tmpfs: [/tmp]
+    cap_drop: [ALL]
+    environment:
+      DATABASE_URL: *database-url
+      DATABASE_POOL_SIZE: ${DATABASE_POOL_SIZE:-10}
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
+      APP_TIMEZONE: ${APP_TIMEZONE:-Asia/Tashkent}
+      CORS_ORIGINS: https://${SITE_DOMAIN:?SITE_DOMAIN berilishi shart},https://${ADMIN_DOMAIN:?ADMIN_DOMAIN berilishi shart}
+      AUTH_SECRET: ${AUTH_SECRET:?AUTH_SECRET .env.production da berilishi shart}
+      ACCESS_TOKEN_TTL_MINUTES: ${ACCESS_TOKEN_TTL_MINUTES:-15}
+      REFRESH_TOKEN_TTL_DAYS: ${REFRESH_TOKEN_TTL_DAYS:-30}
+      STORAGE_DRIVER: ${STORAGE_DRIVER:-local}
+      MEDIA_PUBLIC_URL: ${MEDIA_PUBLIC_URL:-/api/media}
+      S3_ENDPOINT: ${S3_ENDPOINT:-}
+      S3_REGION: ${S3_REGION:-auto}
+      S3_BUCKET: ${S3_BUCKET:-}
+      S3_ACCESS_KEY: ${S3_ACCESS_KEY:-}
+      S3_SECRET_KEY: ${S3_SECRET_KEY:-}
+      S3_FORCE_PATH_STYLE: ${S3_FORCE_PATH_STYLE:-false}
+      SMS_PROVIDER: ${SMS_PROVIDER:-eskiz}
+      SMS_SENDER: ${SMS_SENDER:-4546}
+      ESKIZ_EMAIL: ${ESKIZ_EMAIL:-}
+      ESKIZ_PASSWORD: ${ESKIZ_PASSWORD:-}
+      SMS_DAILY_LIMIT: ${SMS_DAILY_LIMIT:-2000}
+      ORDER_SMS_ENABLED: ${ORDER_SMS_ENABLED:-false}
+    volumes:
+      - uploads:/app/apps/api/uploads
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks: [frontend, backend]
+
+  web:
+    <<: *service
+    build:
+      context: ..
+      dockerfile: apps/web/Dockerfile
+      args:
+        NEXT_PUBLIC_SITE_URL: https://${SITE_DOMAIN}
+      tags: ['santexgo-web:${IMAGE_TAG:-latest}']
+    image: santexgo-web:latest
+    cap_drop: [ALL]
+    environment:
+      API_INTERNAL_URL: http://api:4000
+      MEDIA_ORIGIN: ${MEDIA_ORIGIN:-}
+    depends_on:
+      api:
+        condition: service_healthy
+    networks: [frontend]
+
+  admin:
+    <<: *service
+    build:
+      context: ..
+      dockerfile: apps/admin/Dockerfile
+      args:
+        # Admin paneldagi "saytda ko'rish" havolalari uchun
+        NEXT_PUBLIC_SITE_URL: https://${SITE_DOMAIN}
+      tags: ['santexgo-admin:${IMAGE_TAG:-latest}']
+    image: santexgo-admin:latest
+    cap_drop: [ALL]
+    environment:
+      API_INTERNAL_URL: http://api:4000
+      MEDIA_ORIGIN: ${MEDIA_ORIGIN:-}
+    depends_on:
+      api:
+        condition: service_healthy
+    networks: [frontend]
+
+  # HTTPS (Let's Encrypt sertifikatlari avtomatik olinadi va yangilanadi) va so'rovlarni taqsimlash
+  caddy:
+    <<: *service
+    image: caddy:2-alpine
+    cap_drop: [ALL]
+    cap_add: [NET_BIND_SERVICE]
+    ports:
+      - '80:80'
+      - '443:443'
+      - '443:443/udp'
+    environment:
+      SITE_DOMAIN: ${SITE_DOMAIN}
+      ADMIN_DOMAIN: ${ADMIN_DOMAIN}
+      ACME_EMAIL: ${ACME_EMAIL:?ACME_EMAIL berilishi shart (sertifikat muddati haqida xabarlar uchun)}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      web:
+        condition: service_healthy
+      admin:
+        condition: service_healthy
+    networks: [frontend]
+
+  # Har kuni: baza (pg_dump) va yuklangan fayllar zaxirasi BACKUP_DIR papkasiga
+  backup:
+    <<: *service
+    build:
+      context: ./backup
+      tags: ['santexgo-backup:${IMAGE_TAG:-latest}']
+    image: santexgo-backup:latest
+    environment:
+      PGHOST: postgres
+      PGDATABASE: ${POSTGRES_DB:-santexgo}
+      PGUSER: ${POSTGRES_USER:-santexgo}
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+      BACKUP_CRON: ${BACKUP_CRON:-0 22 * * *}
+      BACKUP_KEEP_DAYS: ${BACKUP_KEEP_DAYS:-14}
+    volumes:
+      - ${BACKUP_DIR:-./backups}:/backups
+      - uploads:/uploads:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks: [backend]
+
+networks:
+  frontend:
+  backend:
+    internal: true
+
+volumes:
+  postgres_data:
+  redis_data:
+  uploads:
+  caddy_data:
+  caddy_config:
