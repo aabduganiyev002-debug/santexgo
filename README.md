@@ -2,20 +2,25 @@
 
 Santexnika mahsulotlari (PPR, PVC, PP trubalar, fittinglar, kanalizatsiya, armatura) uchun online do'kon va buyurtma platformasi.
 
-Loyiha bosqichma-bosqich ishlab chiqilmoqda. Hozirgi holat: **9-bosqich tayyor** — mijozlar sayti (katalog, qidiruv, savatcha, buyurtma, kabinet) va admin panel (statistika va grafiklar, buyurtmalar, mahsulotlar, ombor, chegirmalar, mijozlar bazasi, kontent). Keyingi bosqich — xavfsizlik tekshiruvi va serverga deploy.
+Loyiha bosqichma-bosqich ishlab chiqildi. Hozirgi holat: **10-bosqich tayyor** — mijozlar sayti (katalog, qidiruv, savatcha, buyurtma, kabinet), admin panel (statistika va grafiklar, buyurtmalar, mahsulotlar, ombor, chegirmalar, mijozlar bazasi, kontent) va serverga joylash (Docker, avtomatik HTTPS, kunlik backup). Kelajakdagi imkoniyatlar (Click/Payme/Uzum, Telegram bot va boshqalar) — [ARXITEKTURA.md, 12-bo'lim](docs/ARXITEKTURA.md#12-kelajakda-kengaytirish).
 
 Platforma qanday tuzilgani (arxitektura, baza, mijoz/admin/buyurtma/chegirma jarayonlari, texnologiyalar): **[docs/ARXITEKTURA.md](docs/ARXITEKTURA.md)**.
 
 ## Tarkib
 
-| Papka             | Nima                                                                                   |
-| ----------------- | -------------------------------------------------------------------------------------- |
-| `apps/api`        | Backend API — NestJS 12, Prisma 7, PostgreSQL                                          |
-| `apps/web`        | Mijozlar sayti — Next.js 16, React 19, Tailwind CSS 4                                  |
-| `apps/admin`      | Admin panel — Next.js, http://localhost:3001                                           |
-| `packages/shared` | Frontend va backend uchun umumiy kod: narx/chegirma hisobi, statuslar, telefon formati |
-| `packages/ui`     | Sayt va admin panel uchun umumiy UI komponentlar, API klient va dizayn tokenlari       |
-| `docker`          | Lokal infratuzilma: PostgreSQL, Redis (ixtiyoriy: SeaweedFS — S3 sinovi uchun)         |
+| Papka                            | Nima                                                                                                 |
+| -------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| `apps/api`                       | Backend API — NestJS 12, Prisma 7, PostgreSQL                                                        |
+| `apps/web`                       | Mijozlar sayti — Next.js 16, React 19, Tailwind CSS 4                                                |
+| `apps/admin`                     | Admin panel — Next.js, http://localhost:3001                                                         |
+| `apps/*/Dockerfile`              | Production image'lar: API (va migratsiyalar uchun `migrate`), sayt, admin panel                      |
+| `packages/shared`                | Frontend va backend uchun umumiy kod: narx/chegirma hisobi, statuslar, telefon formati               |
+| `packages/ui`                    | Sayt va admin panel uchun umumiy UI komponentlar, API klient, dizayn tokenlari, CSP (`src/csp.ts`)   |
+| `docker/docker-compose.yml`      | Lokal infratuzilma: PostgreSQL, Redis (ixtiyoriy: SeaweedFS — S3 sinovi uchun)                       |
+| `docker/docker-compose.prod.yml` | Production: sayt, admin panel, API, baza, Redis, Caddy va backup — bitta serverda                    |
+| `docker/Caddyfile`               | HTTPS (Let's Encrypt), domenlar, xavfsizlik sarlavhalari, admin API izolyatsiyasi                    |
+| `docker/backup`                  | Kunlik zaxira (baza va yuklangan fayllar) va tiklash skriptlari                                      |
+| `scripts`                        | `setup.mjs` — kompyuterda o'rnatish (`pnpm setup:local`); `prod.sh` — production serverni boshqarish |
 
 ## Ishga tushirish
 
@@ -54,6 +59,22 @@ Tekshirish:
 | `pnpm infra:down`  | Docker konteynerlarini to'xtatadi                               |
 | `pnpm infra:reset` | Lokal baza va barcha Docker ma'lumotlarini **o'chiradi**        |
 
+## Production'ga joylash
+
+Serverga (Ubuntu 24.04 VPS) o'rnatish, yangilash, zaxira nusxalar va muammolarni hal qilish bo'yicha qadamma-qadam qo'llanma: **[docs/DEPLOY.md](docs/DEPLOY.md)**.
+
+Bitta serverda Docker Compose bilan: Caddy (avtomatik HTTPS), sayt, admin panel, API, PostgreSQL, Redis va kunlik backup. Server tayyor va DNS sozlangan bo'lsa, loyiha papkasida:
+
+```bash
+sh scripts/prod.sh init santexgo.uz admin.santexgo.uz siz@example.com  # sozlamalar, parollar avtomatik
+nano docker/.env.production                                            # Eskiz SMS: ESKIZ_EMAIL, ESKIZ_PASSWORD
+sh scripts/prod.sh deploy                                              # build, migratsiyalar, HTTPS, ishga tushirish
+sh scripts/prod.sh seed                                                # kategoriyalar, materiallar, ombor
+sh scripts/prod.sh admin                                               # admin akkaunt
+```
+
+Yangilash: `sh scripts/prod.sh backup && git pull && sh scripts/prod.sh deploy` (migratsiyalar avtomatik). Boshqa buyruqlar: `status`, `logs`, `backups`, `restore <fayl>`, `versions`, `rollback <versiya>` — `sh scripts/prod.sh` ro'yxatni ko'rsatadi.
+
 ## Kirish va SMS
 
 - Ro'yxatdan o'tish: ism, familiya, telefon, parol → SMS kod → akkaunt yaratiladi va mijoz avtomatik kiradi.
@@ -61,6 +82,8 @@ Tekshirish:
 - **Lokal kompyuterda SMS yuborilmaydi** (`SMS_PROVIDER=console`): kod `pnpm dev` ishlayotgan terminalda `📱 +998...: SantexGo: ... kodi 123456` ko'rinishida chiqadi.
 - Haqiqiy SMS uchun Eskiz.uz: `apps/api/.env` da `SMS_PROVIDER=eskiz`, `ESKIZ_EMAIL`, `ESKIZ_PASSWORD`. SMS matnlari (`apps/api/src/modules/auth/sms-messages.ts`) Eskiz kabinetida shablon sifatida tasdiqlangan bo'lishi kerak.
 - Himoya: parollar Argon2id, sessiya tokenlari httpOnly cookie'da, SMS kod 5 daqiqa / 5 urinish / 60 soniyada bir marta, 10 ta noto'g'ri paroldan keyin raqam 15 daqiqaga bloklanadi, barcha API'ga rate limit, CSRF himoyasi, kunlik SMS limiti.
+- Sayt va admin panel: har so'rovda yangi nonce bilan qat'iy Content-Security-Policy (begona skript bajarilmaydi), HSTS; admin API faqat admin domeni orqali ishlaydi (sayt domenida yopiq). Serverda tashqariga faqat 80/443 ochiq — baza va Redis ichki tarmoqda.
+- Production'da SMS sozlamalari `docker/.env.production` da — [docs/DEPLOY.md](docs/DEPLOY.md).
 
 ## Ma'lumotlar bazasi
 
@@ -88,7 +111,7 @@ API hujjati (Swagger) — http://localhost:4000/api/docs, "Katalog" va "Admin: .
 - **Filtrlar birgalikda:** `/api/v1/catalog/products?brand=plastherm&material=ppr&diameter_mm=25&pn=PN20&priceMin=50000&priceMax=200000` — har bir filtr qiymati yonida nechta mahsulot borligi qaytadi.
 - **Qidiruv** nom, SKU, brend, kategoriya, material va o'lchamlar bo'yicha: "Plastherm 25 PN20", xato yozuv ("plasterm"), kirill ("пвх труба 50"), xalq tili ("quvur" → truba, "otvod" → tirsak). Alohida qidiruv serveri kerak emas — PostgreSQL'ning o'zida (pg_trgm).
 - **Ombor:** sotuvda mavjud qoldiq bazadagi trigger orqali avtomatik hisoblanadi; har bir o'zgarish tarixga yoziladi. Qoldiq 0 bo'lsa mahsulot "Sotuvda yo'q" bo'ladi va ro'yxat oxiriga tushadi.
-- **Rasmlar** yuklanganda tekshiriladi va WebP formatida 3 o'lchamga (1600/800/400 px) keltiriladi. Standart holatda `apps/api/uploads` papkasida saqlanadi; production'da S3 (Cloudflare R2) ga o'tkazish — `.env` da bir nechta qator.
+- **Rasmlar** yuklanganda tekshiriladi va WebP formatida 3 o'lchamga (1600/800/400 px) keltiriladi. Standart holatda `apps/api/uploads` papkasida saqlanadi; production'da server diskida yoki S3 (Cloudflare R2) da — `docker/.env.production` da bir nechta qator ([docs/DEPLOY.md](docs/DEPLOY.md)).
 - **Admin amallari** (yaratish, tahrirlash, o'chirish, ombor) `audit_logs` jurnaliga yoziladi. Buyurtmalarda bor mahsulot o'chirilmaydi — arxivlanadi.
 
 ## Mijozlar sayti
@@ -157,4 +180,4 @@ Admin bosh sahifa bannerlarini (kompyuter va telefon uchun alohida rasm, muddat)
 7. ✅ Shaxsiy kabinet: buyurtmalar tarixi va holati, manzillar, profil, parol va telefonni o'zgartirish
 8. ✅ Admin panel: buyurtmalar, mahsulotlar, ombor, kategoriyalar, brendlar, chegirmalar, mijozlar bazasi, bannerlar, sozlamalar
 9. ✅ Admin statistika va grafiklar
-10. Xavfsizlik tekshiruvi, serverga deploy, backup
+10. ✅ Xavfsizlik tekshiruvi, serverga deploy, backup

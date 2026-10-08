@@ -101,5 +101,5 @@ Oxirida **"✔ Hammasi tayyor!"** va admin akkaunt paroli chiqadi. Parol `apps/a
 ## Muhim
 
 - `.env` fayllarida parollar bor. Ular GitHub'ga yuklanmaydi (`.gitignore`) — hech kimga yubormang.
-- Kompyuterdagi baza faqat sinov uchun. Real saytning ma'lumotlari serverda bo'ladi (11-bosqich).
+- Kompyuterdagi baza faqat sinov uchun. Real saytning ma'lumotlari serverda bo'ladi — serverga joylash: [DEPLOY.md](DEPLOY.md).
 - Foydali buyruqlar: `pnpm infra:down` — Docker xizmatlarini to'xtatadi; `pnpm infra:up` — qayta yoqadi.

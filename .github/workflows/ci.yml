@@ -204,3 +204,92 @@ jobs:
           }
           Get-Content api.out.log, api.err.log
           exit 1
+
+  # Serverdagi kabi: "scripts/prod.sh" bilan production image'lar build qilinadi va to'liq stack
+  # (Caddy, HTTPS, baza, Redis, backup) ishga tushiriladi. *.localhost domenlari uchun Caddy
+  # sertifikatni o'zining ichki CA'sidan oladi (Let's Encrypt'siz)
+  production:
+    name: "Production: Docker image'lar va to'liq stack (Caddy, HTTPS, backup)"
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+
+    env:
+      SITE: santexgo.localhost
+      ADMIN: admin.santexgo.localhost
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: docker/.env.production (sinov qiymatlari)
+        run: |
+          sh scripts/prod.sh init "$SITE" "$ADMIN" ci@example.com
+          # API production rejimida Eskiz sozlamalarini talab qiladi (sinovda SMS yuborilmaydi)
+          sed -i \
+            -e 's/^ESKIZ_EMAIL=.*/ESKIZ_EMAIL=ci@example.com/' \
+            -e 's/^ESKIZ_PASSWORD=.*/ESKIZ_PASSWORD=ci-not-real/' \
+            -e 's/^SEED_SAMPLE_PRODUCTS=.*/SEED_SAMPLE_PRODUCTS=true/' \
+            docker/.env.production
+          grep -qx 'ESKIZ_PASSWORD=ci-not-real' docker/.env.production
+          grep -qx 'SEED_SAMPLE_PRODUCTS=true' docker/.env.production
+
+      - name: Deploy (image'lar build, migratsiyalar, ishga tushirish)
+        run: sh scripts/prod.sh deploy
+
+      - name: Seed (ma'lumotnomalar va namunaviy mahsulotlar)
+        run: sh scripts/prod.sh seed
+
+      - name: Admin akkaunt (so'rovlarsiz, muhit o'zgaruvchilari orqali)
+        env:
+          ADMIN_PHONE: '+998901234567'
+          ADMIN_PASSWORD: ci-admin-password-123
+        run: sh scripts/prod.sh admin
+
+      - name: Smoke test (Caddy orqali HTTPS)
+        run: sh .github/scripts/prod-smoke.sh
+
+      - name: Backup va bazani zaxiradan tiklash
+        run: |
+          api() {
+            curl -sSfk --max-time 30 \
+              --resolve "$SITE:443:127.0.0.1" --resolve "$ADMIN:443:127.0.0.1" "$@"
+          }
+          sh scripts/prod.sh backup
+          # Fayl nomlarida vaqt (UTC) — alifbo tartibidagi oxirgisi eng yangisi
+          for file in docker/backups/db/santexgo-*.dump; do dump=${file##*/}; done
+          test -f "docker/backups/db/$dump"
+          echo "Zaxira: $dump"
+
+          # Zaxiradan keyin yangi brend qo'shiladi — tiklangach u yo'qolishi kerak
+          jar="$RUNNER_TEMP/cookies"
+          api -c "$jar" -o /dev/null -H "Origin: https://$ADMIN" \
+            -H 'Content-Type: application/json' \
+            -d '{"phone":"+998901234567","password":"ci-admin-password-123"}' \
+            "https://$ADMIN/api/v1/auth/login"
+          api -b "$jar" -o /dev/null -H "Origin: https://$ADMIN" \
+            -H 'Content-Type: application/json' \
+            -d '{"name":"CI tiklash sinovi","slug":"ci-tiklash-sinovi"}' \
+            "https://$ADMIN/api/v1/admin/brands"
+          grep -q '"slug":"ci-tiklash-sinovi"' <<< "$(api "https://$SITE/api/v1/catalog/brands")" ||
+            { echo "✖ Yangi brend saytda ko'rinmadi"; exit 1; }
+
+          CONFIRM=HA sh scripts/prod.sh restore "$dump"
+
+          api --retry 15 --retry-delay 2 --retry-all-errors -o /dev/null "https://$SITE/api/health"
+          brands=$(api "https://$SITE/api/v1/catalog/brands")
+          grep -q '"slug":"plastherm"' <<< "$brands" ||
+            { echo "✖ Tiklangan bazada seed ma'lumotlari yo'q"; exit 1; }
+          if grep -q 'ci-tiklash-sinovi' <<< "$brands"; then
+            echo "✖ Tiklangan bazada zaxiradan keyin qo'shilgan brend bor"
+            exit 1
+          fi
+          echo "✔ Baza zaxiradan tiklandi: keyin qo'shilgan brend yo'q, qolgan ma'lumotlar joyida"
+
+      - name: Tiklashdan keyin smoke test
+        run: sh .github/scripts/prod-smoke.sh
+
+      - name: Konteynerlar holati va loglari (xato bo'lsa)
+        if: failure()
+        run: |
+          test -f docker/.env.production || exit 0
+          sh scripts/prod.sh compose ps -a
+          sh scripts/prod.sh compose logs --no-color --tail 100
