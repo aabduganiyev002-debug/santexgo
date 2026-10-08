@@ -2,10 +2,12 @@
  * Boshlang'ich ma'lumotlar: ombor, materiallar, xususiyatlar, kategoriyalar, brendlar,
  * namunaviy mahsulotlar, chegirmalar, homepage tugmalari, sozlamalar va birinchi admin.
  *
- * Qayta ishga tushirish xavfsiz: mavjud yozuvlar yangilanadi, dublikat yaratilmaydi,
- * mavjud ombor qoldiqlari va admin paroli o'zgartirilmaydi.
+ * Qayta ishga tushirish xavfsiz: dublikat yaratilmaydi, mavjud ombor qoldiqlari, sozlamalar
+ * va admin paroli o'zgartirilmaydi. Lokal muhitda ma'lumotnomalar seed'dagi holatga yangilanadi;
+ * production'da (SEED_SAMPLE_PRODUCTS=false) faqat yo'qlari yoziladi — admin o'zgartirganlari qoladi.
  *
  * Ishga tushirish: pnpm db:seed
+ * Faqat admin yaratish/tayinlash: SEED_SCOPE=admin pnpm db:seed
  */
 import { PrismaPg } from '@prisma/adapter-pg';
 import { isDiscountActive, normalizeUzPhone, slugify } from '@santexgo/shared';
@@ -79,7 +81,11 @@ function attributeValueData(value: AttributeValue): {
   return { numberValue: null, textValue: value, booleanValue: null };
 }
 
-async function seedReferenceData(prisma: PrismaClient) {
+/**
+ * overwrite=false (production): mavjud yozuvlarga tegilmaydi, faqat yo'qlari yaratiladi.
+ * overwrite=true (lokal): yozuvlar seed'dagi holatga keltiriladi.
+ */
+async function seedReferenceData(prisma: PrismaClient, overwrite: boolean) {
   const warehouse = await prisma.warehouse.upsert({
     where: { code: WAREHOUSE.code },
     update: {},
@@ -90,7 +96,7 @@ async function seedReferenceData(prisma: PrismaClient) {
   for (const m of MATERIALS) {
     const row = await prisma.material.upsert({
       where: { slug: m.slug },
-      update: { name: m.name, fullName: m.fullName, sortOrder: m.sortOrder },
+      update: overwrite ? { name: m.name, fullName: m.fullName, sortOrder: m.sortOrder } : {},
       create: m,
     });
     materialIds.set(m.slug, row.id);
@@ -98,7 +104,11 @@ async function seedReferenceData(prisma: PrismaClient) {
 
   const attributeIds = new Map<string, string>();
   for (const a of ATTRIBUTES) {
-    const row = await prisma.attribute.upsert({ where: { key: a.key }, update: a, create: a });
+    const row = await prisma.attribute.upsert({
+      where: { key: a.key },
+      update: overwrite ? a : {},
+      create: a,
+    });
     attributeIds.set(a.key, row.id);
   }
 
@@ -112,7 +122,7 @@ async function seedReferenceData(prisma: PrismaClient) {
     const data = { name: c.name, sortOrder: c.sortOrder, parentId };
     const row = await prisma.category.upsert({
       where: { slug: c.slug },
-      update: data,
+      update: overwrite ? data : {},
       create: { ...data, slug: c.slug },
     });
     categoryIds.set(c.slug, row.id);
@@ -121,7 +131,7 @@ async function seedReferenceData(prisma: PrismaClient) {
       const attributeId = requireId(attributeIds, key, 'xususiyat');
       await prisma.categoryAttribute.upsert({
         where: { categoryId_attributeId: { categoryId: row.id, attributeId } },
-        update: { sortOrder: index },
+        update: overwrite ? { sortOrder: index } : {},
         create: { categoryId: row.id, attributeId, sortOrder: index },
       });
     }
@@ -129,16 +139,22 @@ async function seedReferenceData(prisma: PrismaClient) {
 
   const brandIds = new Map<string, string>();
   for (const b of BRANDS) {
-    const row = await prisma.brand.upsert({ where: { slug: b.slug }, update: b, create: b });
+    const row = await prisma.brand.upsert({
+      where: { slug: b.slug },
+      update: overwrite ? b : {},
+      create: b,
+    });
     brandIds.set(b.slug, row.id);
   }
 
   const groupIds = new Map<string, string>();
   for (const g of GROUPS) {
     const existing = await prisma.productGroup.findFirst({ where: { name: g.name } });
-    const row = existing
-      ? await prisma.productGroup.update({ where: { id: existing.id }, data: g })
-      : await prisma.productGroup.create({ data: g });
+    const row = !existing
+      ? await prisma.productGroup.create({ data: g })
+      : overwrite
+        ? await prisma.productGroup.update({ where: { id: existing.id }, data: g })
+        : existing;
     groupIds.set(g.name, row.id);
   }
 
@@ -361,6 +377,7 @@ async function refreshSearchText(prisma: PrismaClient): Promise<void> {
 async function seedHomeAndSettings(
   prisma: PrismaClient,
   refs: Awaited<ReturnType<typeof seedReferenceData>>,
+  overwrite: boolean,
 ): Promise<void> {
   for (const c of HOME_COLLECTIONS) {
     const data = {
@@ -372,7 +389,7 @@ async function seedHomeAndSettings(
     };
     await prisma.homeCollection.upsert({
       where: { slug: c.slug },
-      update: data,
+      update: overwrite ? data : {},
       create: { ...data, slug: c.slug },
     });
   }
@@ -453,21 +470,36 @@ async function main(): Promise<void> {
     adapter: new PrismaPg({ connectionString: requireEnv('DATABASE_URL') }),
   });
 
+  // Production'da (SEED_SAMPLE_PRODUCTS=false) namunaviy mahsulot va chegirmalar yozilmaydi —
+  // faqat ma'lumotnomalar (kategoriyalar, materiallar, xususiyatlar, ombor), sozlamalar va admin
+  const withSamples = process.env.SEED_SAMPLE_PRODUCTS !== 'false';
+
   try {
-    const refs = await seedReferenceData(prisma);
-    const { productIds, restocked } = await seedProducts(prisma, refs);
-    await seedDiscounts(prisma, refs, productIds);
-    const repriced = await recalculatePrices(prisma);
-    await refreshSearchText(prisma);
-    await seedHomeAndSettings(prisma, refs);
+    if (process.env.SEED_SCOPE === 'admin') {
+      if (!adminInput)
+        throw new Error('SEED_SCOPE=admin uchun ADMIN_PHONE va ADMIN_PASSWORD kerak');
+      console.info(`✔ ${await seedAdmin(prisma, adminInput)}`);
+      return;
+    }
+    const refs = await seedReferenceData(prisma, withSamples);
+    let productsMessage = 'Namunaviy mahsulotlar yozilmadi (SEED_SAMPLE_PRODUCTS=false)';
+    if (withSamples) {
+      const { productIds, restocked } = await seedProducts(prisma, refs);
+      await seedDiscounts(prisma, refs, productIds);
+      const repriced = await recalculatePrices(prisma);
+      await refreshSearchText(prisma);
+      productsMessage =
+        `Mahsulotlar: ${productIds.size} (yangi qoldiq yozilgan: ${restocked}); ` +
+        `chegirmalar: ${DISCOUNTS.length}, narxi yangilangan mahsulotlar: ${repriced}`;
+    }
+    await seedHomeAndSettings(prisma, refs, withSamples);
     const adminMessage = await seedAdmin(prisma, adminInput);
 
     console.info('✔ Seed tugadi');
     console.info(
       `  Materiallar: ${refs.materialIds.size}, kategoriyalar: ${refs.categoryIds.size}, brendlar: ${refs.brandIds.size}`,
     );
-    console.info(`  Mahsulotlar: ${productIds.size} (yangi qoldiq yozilgan: ${restocked})`);
-    console.info(`  Chegirmalar: ${DISCOUNTS.length}, narxi yangilangan mahsulotlar: ${repriced}`);
+    console.info(`  ${productsMessage}`);
     console.info(`  ${adminMessage}`);
   } finally {
     await prisma.$disconnect();

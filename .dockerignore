@@ -1,0 +1,22 @@
+# Docker build konteksti: faqat manba kodi (image ichida turbo prune qilinadi)
+**/node_modules
+**/.next
+**/dist
+**/.turbo
+**/coverage
+**/*.tsbuildinfo
+**/next-env.d.ts
+apps/api/src/generated
+apps/api/uploads
+
+# Maxfiy sozlamalar image'ga hech qachon tushmasligi kerak
+**/.env
+**/.env.*
+!**/.env.example
+!**/.env.production.example
+
+.git
+.github
+docker/backups
+dump.rdb
+*.log

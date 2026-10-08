@@ -13,6 +13,7 @@
     "./badge": "./src/badge.tsx",
     "./button": "./src/button.tsx",
     "./cn": "./src/cn.ts",
+    "./csp": "./src/csp.ts",
     "./field": "./src/field.tsx",
     "./form-errors": "./src/form-errors.ts",
     "./format": "./src/format.ts",
