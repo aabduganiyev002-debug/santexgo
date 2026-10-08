@@ -2,8 +2,11 @@ import { AUTH_COOKIES } from '@santexgo/shared';
 import { nextWithCsp } from '@santexgo/ui/csp';
 import { type NextRequest, NextResponse } from 'next/server';
 
-function isLoginPage(pathname: string): boolean {
-  return pathname === '/login' || pathname.startsWith('/login/');
+/** Kirmasdan ham ochiladigan sahifa va fayllar (kirish sahifasi va uning ikonkasi) */
+const PUBLIC_FILES = new Set(['/icon.svg', '/favicon.ico']);
+
+function isPublic(pathname: string): boolean {
+  return pathname === '/login' || pathname.startsWith('/login/') || PUBLIC_FILES.has(pathname);
 }
 
 /**
@@ -14,7 +17,7 @@ function isLoginPage(pathname: string): boolean {
  */
 export function proxy(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
-  if (!isLoginPage(pathname) && request.cookies.get(AUTH_COOKIES.hint)?.value !== '1') {
+  if (!isPublic(pathname) && request.cookies.get(AUTH_COOKIES.hint)?.value !== '1') {
     const login = new URL('/login', request.url);
     const next = `${pathname}${search}`;
     if (next !== '/') login.searchParams.set('next', next);
@@ -27,6 +30,7 @@ export function proxy(request: NextRequest) {
 }
 
 export const config = {
-  // API, statik fayllar va ikonkadan tashqari hammasi
-  matcher: ['/((?!api/|_next/static/|_next/image|icon\\.svg|favicon\\.ico).*)'],
+  // API va build fayllaridan (/_next/static — topilmasa oddiy matnli 404) tashqari hammasi.
+  // Istisnolar ataylab minimal: istisno qilingan yo'l HTML qaytarsa, u CSP'siz qolardi
+  matcher: ['/((?!api/|_next/static/).*)'],
 };

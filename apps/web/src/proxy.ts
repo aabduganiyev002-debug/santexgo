@@ -29,8 +29,7 @@ export function proxy(request: NextRequest) {
 }
 
 export const config = {
-  // API, statik fayllar va ikonkalardan tashqari hammasi
-  matcher: [
-    '/((?!api/|_next/static/|_next/image|icon\\.svg|favicon\\.ico|robots\\.txt|sitemap\\.xml).*)',
-  ],
+  // API va build fayllaridan (/_next/static — topilmasa oddiy matnli 404) tashqari hammasi.
+  // Istisnolar ataylab minimal: istisno qilingan yo'l HTML qaytarsa, u CSP'siz qolardi
+  matcher: ['/((?!api/|_next/static/).*)'],
 };

@@ -199,6 +199,20 @@ expect_redirect 307 "https://$SITE/login?next=%2Faccount" "Kabinet (kirmasdan)" 
   "https://$SITE/account"
 ok "Kabinet kirmagan foydalanuvchini /login?next=%2Faccount ga yo'naltiradi"
 
+# Ilova istisno qilgan yoki kutilmagan yo'llar ham CSP'siz HTML qaytarmasligi kerak
+for path in /favicon.ico/x /robots.txtx /sitemap.xmlx /icon.svg/x /_next/image /_next/imagex; do
+  fetch "https://$SITE$path" > /dev/null
+  case "$(header content-type)" in
+    text/html*) expect_header content-security-policy "'nonce-" "CSP: $path (HTML)" ;;
+  esac
+  [ -n "$(header content-security-policy)" ] || fail "CSP: $path javobida CSP yo'q"
+done
+for app_domain in "$SITE" "$ADMIN"; do
+  expect_status 200 "Favicon ($app_domain)" "https://$app_domain/favicon.ico"
+  expect_header content-type image/ "Favicon ($app_domain)"
+done
+ok "CSP istisno yo'llarda ham bor (/favicon.ico/x, /robots.txtx, /_next/image...); favicon.ico — rasm"
+
 expect_redirect 308 "https://$SITE/catalog?ref=smoke" "HTTP → HTTPS" \
   "http://$SITE/catalog?ref=smoke"
 expect_redirect 308 "https://$ADMIN/login" "HTTP → HTTPS (admin)" "http://$ADMIN/login"
@@ -253,6 +267,25 @@ expect_status 400 "O'z domenidan so'rov (noto'g'ri tana)" -b "$JAR" -X POST \
   -H "Origin: https://$ADMIN" -H 'Content-Type: application/json' --data '{}' \
   "https://$ADMIN/api/v1/admin/brands"
 ok "CSRF: Origin https://evil.example — 403; o'z domeni — o'tkaziladi (validatsiya 400)"
+
+# Sayt sahifasidagi skript (masalan, XSS) admin domenidagi API'ni admin cookie'lari bilan
+# chaqira olmasligi kerak: sayt va admin domeni bir "site" — SameSite cookie'lar yuboriladi
+expect_status 403 "Sayt domenidan admin API (GET, CORS)" -b "$JAR" \
+  -H "Origin: https://$SITE" "https://$ADMIN/api/v1/admin/stats/overview"
+if grep -qi '^access-control-allow-origin:' "$TMP/headers"; then
+  fail "Admin API sayt domeniga CORS ruxsatini berdi: $(header access-control-allow-origin)"
+fi
+expect_status 403 "Sayt domenidan admin API (POST)" -b "$JAR" -X POST \
+  -H "Origin: https://$SITE" -H 'Content-Type: application/json' --data '{}' \
+  "https://$ADMIN/api/v1/admin/brands"
+expect_body CSRF_REJECTED "Sayt domenidan admin API (POST)"
+expect_status 403 "Sayt domenidan admin API (preflight)" -X OPTIONS \
+  -H "Origin: https://$SITE" -H 'Access-Control-Request-Method: DELETE' \
+  "https://$ADMIN/api/v1/admin/brands"
+expect_status 403 "Admin domenidan sayt API'siga (POST)" -X POST \
+  -H "Origin: https://$ADMIN" -H 'Content-Type: application/json' --data '{}' \
+  "https://$SITE/api/v1/cart/preview"
+ok "Domenlar bir-birining API'siga brauzerdan murojaat qila olmaydi (403, CORS ruxsati yo'q)"
 
 # ─────────────────── Rasm yuklash (read-only API konteyneri) ───────────────────
 

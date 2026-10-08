@@ -15,6 +15,9 @@
 	header {
 		Strict-Transport-Security "max-age=31536000; includeSubDomains"
 		X-Content-Type-Options nosniff
+		# Ilova o'z CSP'sini bermagan javoblar uchun eng qat'iy standart (masalan, kutilmagan
+		# HTML sahifa): unda hech qanday skript ishlamaydi
+		?Content-Security-Policy "default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'"
 		-Server
 		-X-Powered-By
 	}
@@ -24,15 +27,29 @@
 	}
 }
 
+# @foreignOrigin matcher'i bilan: API xato formatidagi 403 javob (CSRF va CORS'ga qarshi birinchi qavat)
+(reject-foreign-origin) {
+	header @foreignOrigin Content-Type "application/json; charset=utf-8"
+	respond @foreignOrigin `{"statusCode":403,"code":"CSRF_REJECTED","message":"So‘rov rad etildi: ruxsat etilmagan manba"}` 403
+}
+
 {$SITE_DOMAIN} {
 	import common
 
 	# Admin API faqat admin domeni orqali: saytdagi biror zaiflik admin cookie'lari bilan
 	# boshqaruv so'rovlarini yubora olmaydi
 	@adminApi path_regexp (?i)^/+api/+v[0-9]+/+admin(/|$)
+	# API'ga boshqa saytdan (shu jumladan admin domenidan) kelgan brauzer so'rovlari rad etiladi.
+	# Sayt va admin panel API'ga faqat o'z domeni orqali murojaat qiladi — CORS kerak emas
+	@foreignOrigin {
+		path /api/*
+		header Origin *
+		not header Origin https://{$SITE_DOMAIN}
+	}
 
 	route {
 		respond @adminApi 404
+		import reject-foreign-origin
 		reverse_proxy /api/* api:4000
 		reverse_proxy web:3000
 	}
@@ -45,10 +62,16 @@ www.{$SITE_DOMAIN} {
 {$ADMIN_DOMAIN} {
 	import common
 
-	handle /api/* {
-		reverse_proxy api:4000
+	# Admin API'ga faqat admin panelning o'zidan: sayt sahifalaridan kelgan so'rovlar ham rad etiladi
+	@foreignOrigin {
+		path /api/*
+		header Origin *
+		not header Origin https://{$ADMIN_DOMAIN}
 	}
-	handle {
+
+	route {
+		import reject-foreign-origin
+		reverse_proxy /api/* api:4000
 		reverse_proxy admin:3001
 	}
 }
