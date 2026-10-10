@@ -83,6 +83,18 @@ function attributeValueData(value: AttributeValue): {
   return { numberValue: null, textValue: value, booleanValue: null };
 }
 
+/** Asosiy ombor — mahsulot qoldig'i uchun shart, admin panelda yaratib bo'lmaydi; borini o'zgartirmaydi */
+function seedWarehouse(prisma: PrismaClient) {
+  return prisma.warehouse.upsert({
+    where: { code: WAREHOUSE.code },
+    update: {},
+    create: { ...WAREHOUSE, isDefault: true },
+  });
+}
+
+/** Ma'lumotnomalar to'liq yozilganini bildiruvchi belgi (sozlamalar jadvalida, saytda ko'rinmaydi) */
+const REFERENCE_DATA_MARKER = 'seed.referenceData';
+
 /**
  * withSamples=true (lokal): yozuvlar seed'dagi holatga keltiriladi, namunaviy brendlar va
  * variant guruhlari ham yoziladi. withSamples=false (production): mavjud yozuvlarga tegilmaydi,
@@ -90,11 +102,7 @@ function attributeValueData(value: AttributeValue): {
  */
 async function seedReferenceData(prisma: PrismaClient, withSamples: boolean) {
   const overwrite = withSamples;
-  const warehouse = await prisma.warehouse.upsert({
-    where: { code: WAREHOUSE.code },
-    update: {},
-    create: { ...WAREHOUSE, isDefault: true },
-  });
+  const warehouse = await seedWarehouse(prisma);
 
   const materialIds = new Map<string, string>();
   for (const m of MATERIALS) {
@@ -488,8 +496,14 @@ async function main(): Promise<void> {
       return;
     }
     const messages: string[] = [];
-    // Production: ma'lumotnomalar faqat birinchi o'rnatishda — keyin ularni admin boshqaradi
-    if (!withSamples && (await prisma.category.count()) > 0) {
+    // Production: ma'lumotnomalar bir marta to'liq yoziladi — keyin ularni admin boshqaradi.
+    // Belgi oxirida qo'yiladi: yarim qolgan birinchi urinishdan keyin qayta ishga tushirish
+    // yetishmaganlarini yozib tugatadi
+    const referenceDone =
+      !withSamples &&
+      (await prisma.setting.findUnique({ where: { key: REFERENCE_DATA_MARKER } })) !== null;
+    if (referenceDone) {
+      await seedWarehouse(prisma);
       messages.push(
         "Ma'lumotnomalar allaqachon bor — o'zgartirilmadi (admin panel orqali boshqariladi)",
       );
@@ -514,6 +528,14 @@ async function main(): Promise<void> {
         );
       }
       await seedHomeCollections(prisma, refs, withSamples);
+      await prisma.setting.upsert({
+        where: { key: REFERENCE_DATA_MARKER },
+        update: {},
+        create: {
+          key: REFERENCE_DATA_MARKER,
+          value: { version: 1, completedAt: new Date().toISOString() },
+        },
+      });
     }
     await seedSettings(prisma);
     messages.push(await seedAdmin(prisma, adminInput));

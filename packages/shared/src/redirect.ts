@@ -15,6 +15,7 @@ export function safeNextPath(next: string | null | undefined, fallback = '/'): s
   } catch {
     return fallback;
   }
-  if (url.origin !== PLACEHOLDER_ORIGIN) return fallback;
+  // "/..//evil.com" normallashtirilgach "//evil.com" bo'ladi — bu boshqa saytga havola
+  if (url.origin !== PLACEHOLDER_ORIGIN || url.pathname.startsWith('//')) return fallback;
   return `${url.pathname}${url.search}${url.hash}`;
 }

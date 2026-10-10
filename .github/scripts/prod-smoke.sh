@@ -161,6 +161,14 @@ state=$(sh scripts/prod.sh compose ps --format '{{.State}}' caddy)
 [ "$state" = running ] || fail "Konteyner \"caddy\": \"${state:-ishlamayapti}\" (kutilgan: running)"
 ok "Konteynerlar: postgres, redis, api, web, admin, backup — healthy; caddy — running"
 
+# Redis imtiyozsiz foydalanuvchi bilan ishlashi va parolsiz ulanishni rad etishi kerak
+redis_uid=$(sh scripts/prod.sh compose exec -T redis sh -c \
+  'grep "^Uid:" /proc/$(pidof redis-server)/status' | awk '{print $2}')
+[ -n "$redis_uid" ] && [ "$redis_uid" != 0 ] || fail "Redis root sifatida ishlayapti (uid: $redis_uid)"
+noauth=$(sh scripts/prod.sh compose exec -T -e REDISCLI_AUTH= redis redis-cli ping 2>&1 || true)
+case "$noauth" in *NOAUTH*) ;; *) fail "Redis parolsiz ulanishga ruxsat berdi: $noauth" ;; esac
+ok "Redis: root'siz (uid $redis_uid), parolsiz ulanish rad etiladi"
+
 backup_dir=$(sed -n 's/^BACKUP_DIR=//p' "$ENV_FILE" | tail -n 1 | tr -d "\"'")
 case "${backup_dir:=./backups}" in
   /*) ;;

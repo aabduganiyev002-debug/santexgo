@@ -47,14 +47,17 @@ services:
     <<: *service
     image: redis:8-alpine
     # Parol buyruq argumentlarida emas (serverdagi "ps" da ko'rinmasin): konteyner ichidagi
-    # konfiguratsiya faylida. exec — Redis to'xtash signalini to'g'ridan-to'g'ri oladi
+    # konfiguratsiya faylida. Image entrypoint'i orqali — Redis root'siz (redis foydalanuvchisi)
+    # va imtiyozlarsiz ishlaydi; exec — to'xtash signalini to'g'ridan-to'g'ri oladi
     command:
       - sh
       - -c
       - |
         umask 077
-        printf 'requirepass "%s"\n' "$$REDIS_PASSWORD" > /tmp/redis.conf
-        exec redis-server /tmp/redis.conf --appendonly yes --maxmemory 256mb --maxmemory-policy volatile-lru
+        mkdir -p /run/redis
+        printf 'requirepass "%s"\n' "$$REDIS_PASSWORD" > /run/redis/redis.conf
+        exec docker-entrypoint.sh redis-server /run/redis/redis.conf \
+          --appendonly yes --maxmemory 256mb --maxmemory-policy volatile-lru
     environment:
       REDIS_PASSWORD: ${REDIS_PASSWORD:?REDIS_PASSWORD .env.production da berilishi shart}
       # redis-cli (healthcheck) parolni shu o'zgaruvchidan oladi

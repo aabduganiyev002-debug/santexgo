@@ -29,7 +29,7 @@ sh scripts/prod.sh deploy        # build, migratsiyalar, HTTPS va ishga tushiris
 sh scripts/prod.sh seed          # kategoriyalar, materiallar, ombor
 sh scripts/prod.sh admin         # admin akkaunt
 
-# Keyinchalik yangilash (deploy avval zaxira nusxa oladi):
+# Keyinchalik yangilash (deploy migratsiyalardan oldin zaxira nusxa oladi):
 git pull && sh scripts/prod.sh deploy
 ```
 
@@ -236,6 +236,13 @@ free -h
 
 `free -h` da `Swap:` qatorida 4 GB ko'rinadi. Serverda swap allaqachon bo'lsa (`swapon --show` biror narsa chiqaradi), bu qadamni o'tkazib yuboring.
 
+Redis xotira kam paytda ham ma'lumotni diskka ishonchli yozishi uchun (aks holda logda `WARNING Memory overcommit must be enabled!`):
+
+```
+echo 'vm.overcommit_memory = 1' | sudo tee /etc/sysctl.d/90-redis.conf
+sudo sysctl --system
+```
+
 ### 4.8. Docker o'rnatish
 
 Docker'ning rasmiy skripti Docker'ning rasmiy apt repozitoriyasini qo'shadi va Docker Engine hamda Compose plaginini o'rnatadi (keyingi yangilanishlar oddiy `apt upgrade` bilan keladi):
@@ -363,11 +370,11 @@ sh scripts/prod.sh deploy
 Buyruq:
 
 1. Sozlamalar to'liqligini tekshiradi (domenlar, parollar, `SMS_PROVIDER=eskiz` va Eskiz akkaunti).
-2. Backup xizmati ishlab turgan bo'lsa (ya'ni birinchi o'rnatishda emas), avval bazaning zaxira nusxasini oladi. Zaxira olinmasa, `deploy` shu yerda to'xtaydi — sayt eski versiyada qoladi.
-3. PostgreSQL, Redis, Caddy va Node.js bazaviy image'larining yangi (xavfsizlik tuzatishlari bilan) versiyalarini yuklaydi. `PULL=0` bilan bu qadam o'tkazib yuboriladi (6.1).
-4. API, sayt, admin panel, migrate va backup image'larini build qiladi. Versiya — UTC vaqt va joriy git commit, masalan `20261010-064215-5b48e2d`; hamma image'lar shu bitta teg bilan belgilanadi. Ishlab turgan versiya (`latest`) faqat **hamma** image muvaffaqiyatli build qilingandan keyin yangisiga o'tadi.
-5. Bazaga yangi migratsiyalarni qo'llaydi, hamma xizmatlarni ishga tushiradi va ular sog'lom ("healthy") bo'lishini 5 daqiqagacha kutadi.
-6. Eski versiyalarni tozalaydi — rollback uchun oxirgi 5 tasi qoladi; bir haftadan eski build keshini ham o'chiradi (`docker builder prune --filter until=168h`).
+2. PostgreSQL, Redis, Caddy va Node.js bazaviy image'larining yangi (xavfsizlik tuzatishlari bilan) versiyalarini yuklaydi. `PULL=0` bilan bu qadam o'tkazib yuboriladi (6.1).
+3. API, sayt, admin panel, migrate va backup image'larini build qiladi. Versiya — UTC vaqt va joriy git commit, masalan `20261010-064215-5b48e2d`; hamma image'lar shu bitta teg bilan belgilanadi. Build xato bilan to'xtasa, shu versiyaning teglari o'chiriladi va `deploy` to'xtaydi — sayt eski versiyada qoladi.
+4. Baza allaqachon bor bo'lsa (birinchi o'rnatishda emas), migratsiyalardan oldin zaxira nusxa oladi — tiklash nuqtasi yangilanishdan bir necha soniya oldingi holat bo'ladi. Backup xizmati to'xtab qolgan bo'lsa, uni ishga tushiradi. Zaxira olinmasa, `deploy` shu yerda to'xtaydi — sayt eski versiyada qoladi (majburan davom etish: `BACKUP=0`, tavsiya etilmaydi).
+5. Ishlab turgan versiyani (`latest`) yangisiga o'tkazadi, bazaga yangi migratsiyalarni qo'llaydi, hamma xizmatlarni ishga tushiradi va ular sog'lom ("healthy") bo'lishini 5 daqiqagacha kutadi.
+6. Eski versiyalarni tozalaydi — rollback uchun oxirgi 5 ta to'liq versiya qoladi; bir haftadan eski build keshini ham o'chiradi (`docker builder prune --filter until=168h`).
 7. Sayt HTTPS orqali ochilishini tekshiradi. Sertifikat hali olinmagan bo'lsa, ogohlantiradi: `! https://santexgo.uz hali ochilmayapti (sertifikat olinmagan bo'lishi mumkin)` — xizmatlar baribir ishga tushgan bo'ladi.
 
 Oxirida `▸ Tayyor (versiya ...)` va sayt hamda admin panel manzillari chiqadi. Birinchi marta 10–30 daqiqa ketadi; keyingilari keshdan foydalanib tezroq.
@@ -437,7 +444,7 @@ git pull
 sh scripts/prod.sh deploy
 ```
 
-- `deploy` avval bazaning zaxira nusxasini o'zi oladi (migratsiyalar orqaga qaytarilmaydi — 6.3). Xohlasangiz, `git pull` dan oldin qo'lda ham olishingiz mumkin: `sh scripts/prod.sh backup`. Zaxira olinmasa (masalan, disk to'lgan), `deploy` to'xtaydi va sayt eski versiyada qoladi.
+- `deploy` build'dan keyin, migratsiyalardan oldin bazaning zaxira nusxasini o'zi oladi (migratsiyalar orqaga qaytarilmaydi — 6.3). Xohlasangiz, `git pull` dan oldin qo'lda ham olishingiz mumkin: `sh scripts/prod.sh backup`. Zaxira olinmasa (masalan, disk to'lgan), `deploy` to'xtaydi va sayt eski versiyada qoladi.
 - Bazaga yangi migratsiyalar avtomatik qo'llanadi — qo'lda hech narsa qilinmaydi.
 - Build paytida eski versiya ishlashda davom etadi. Build xato bilan to'xtasa (bitta image'da bo'lsa ham), sayt eski versiyada qoladi.
 - Faqat almashish paytida (API, sayt va admin panel qayta ishga tushganda) taxminan 1 daqiqagacha sayt javob bermasligi mumkin (`502` xato). Yangilashni mijozlar kam paytda qiling.

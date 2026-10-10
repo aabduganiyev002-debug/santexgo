@@ -27,6 +27,14 @@ describe('safeNextPath', () => {
       '/\r/evil.com',
       '\t//evil.com',
       '/\u0000/evil.com',
+      // Nuqtali segmentlar normallashtirilgach "//evil.com" ga aylanadi
+      '/..//evil.com',
+      '/.//evil.com',
+      '/%2e%2e//evil.com',
+      '/%2e//evil.com',
+      '/a/..//evil.com',
+      '/..///evil.com',
+      '/x/..//evil.com/phish?a=1',
     ]) {
       expect(safeNextPath(value), JSON.stringify(value)).toBe('/');
     }

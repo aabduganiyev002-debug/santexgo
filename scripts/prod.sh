@@ -12,6 +12,8 @@ KEEP_VERSIONS=5
 IMAGES="api web admin migrate backup"
 # Versiya teglari: <UTC vaqt>-<commit>, masalan 20261010-063100-5b48e2d — alifbo tartibi = vaqt tartibi
 VERSION_PATTERN='^[0-9]{8}-[0-9]{6}-'
+# docker/docker-compose.prod.yml dagi "name:" — hajmlar nomi shundan boshlanadi
+PROJECT=santexgo-prod
 
 usage() {
   cat <<'EOF'
@@ -21,6 +23,7 @@ O'rnatish va yangilash:
   init [domen] [admin-domen] [email]  docker/.env.production yaratish (parollar avtomatik)
   deploy                              build, migratsiyalar va ishga tushirish (yangilash ham shu)
                                       PULL=0 — bazaviy image'larni yangilamasdan (Docker Hub limiti)
+                                      BACKUP=0 — oldindan zaxira olmasdan (tavsiya etilmaydi)
   seed                                ma'lumotnomalar: kategoriyalar, materiallar, ombor (bir marta)
   admin                               admin akkaunt yaratish yoki mavjud foydalanuvchini admin qilish
   versions | rollback <versiya>       oldingi versiyalar va ularga qaytish
@@ -126,19 +129,38 @@ cmd_init() {
   info "So'ng: sh scripts/prod.sh deploy"
 }
 
-# Deploy qilingan versiyalar (eng yangisi birinchi). Har deploy barcha image'larni bir xil teg bilan
-# belgilaydi, shuning uchun API image teglari ro'yxati yetarli
-list_versions() {
-  docker images santexgo-api --format '{{.Tag}}' | grep -E "$VERSION_PATTERN" | sort -r || true
+# Biror image'da uchraydigan barcha versiya teglari (eng yangisi birinchi)
+all_version_tags() {
+  for name in $IMAGES; do
+    docker images "santexgo-$name" --format '{{.Tag}}'
+  done | grep -E "$VERSION_PATTERN" | sort -ru || true
 }
 
-# Eng yangi KEEP_VERSIONS versiyadan eskilarining teglari olib tashlanadi (ishlab turgan konteyner
-# image'i "latest" tegi bilan qoladi), keyin hech qaysi teg qolmagan image'lar o'chiriladi
+# Versiya to'liqmi — barcha image'lar shu teg bilan bormi
+is_complete_version() {
+  for name in $IMAGES; do
+    docker image inspect "santexgo-$name:$1" > /dev/null 2>&1 || return 1
+  done
+}
+
+# Rollback qilsa bo'ladigan versiyalar (eng yangisi birinchi)
+list_versions() {
+  all_version_tags | while read -r tag; do
+    if is_complete_version "$tag"; then printf '%s\n' "$tag"; fi
+  done
+}
+
+# Eng yangi KEEP_VERSIONS ta to'liq versiya qoladi; qolgan teglar (eski va yarim build qilinganlari)
+# olib tashlanadi — ishlab turgan konteyner image'i "latest" tegi bilan qoladi. So'ng hech qaysi
+# tegi qolmagan image'lar o'chiriladi
 prune_versions() {
-  list_versions | tail -n +"$((KEEP_VERSIONS + 1))" | while read -r old; do
-    for name in $IMAGES; do
-      docker rmi "santexgo-$name:$old" > /dev/null 2>&1 || true
-    done
+  keep=$(list_versions | head -n "$KEEP_VERSIONS")
+  all_version_tags | while read -r tag; do
+    if ! printf '%s\n' "$keep" | grep -qxF "$tag"; then
+      for name in $IMAGES; do
+        docker rmi "santexgo-$name:$tag" > /dev/null 2>&1 || true
+      done
+    fi
   done
   docker image prune -f > /dev/null
   # Build keshi cheksiz o'smasligi uchun: bir haftadan eskisi
@@ -149,10 +171,6 @@ cmd_deploy() {
   require_env
   commit=$(git rev-parse --short HEAD 2> /dev/null || echo local)
   version=$(date -u +%Y%m%d-%H%M%S)-$commit
-  if [ -n "$(compose ps -q --status running backup 2> /dev/null)" ]; then
-    info "Yangilashdan oldin zaxira nusxa olinmoqda..."
-    compose exec -T backup backup.sh
-  fi
   # PULL=0 — bazaviy image'lar yangilanmaydi (Docker Hub limiti yoki internet muammosida)
   pull_flag=--pull
   if [ "${PULL:-1}" = 0 ]; then
@@ -163,7 +181,14 @@ cmd_deploy() {
   fi
   info "Image'lar build qilinmoqda (versiya: $version)..."
   # shellcheck disable=SC2086 # pull_flag bo'sh bo'lishi mumkin
-  IMAGE_TAG=$version compose build $pull_flag
+  if ! IMAGE_TAG=$version compose build $pull_flag; then
+    # Muvaffaqiyatli build qilingan image'larning teglari ham olib tashlanadi (yarim versiya qolmasin)
+    for name in $IMAGES; do
+      docker rmi "santexgo-$name:$version" > /dev/null 2>&1 || true
+    done
+    die "Build muvaffaqiyatsiz (xato yuqorida) — ishlab turgan versiya o'zgarmadi"
+  fi
+  backup_before_migrations
   # "latest" faqat hamma image muvaffaqiyatli build qilingandan keyin yangi versiyaga o'tadi —
   # build yarim yo'lda to'xtasa, ishlab turgan versiya o'zgarmaydi
   for name in $IMAGES; do
@@ -176,6 +201,21 @@ cmd_deploy() {
   info "Tayyor (versiya $version):"
   info "  Sayt:        https://$(env_value SITE_DOMAIN)"
   info "  Admin panel: https://$(env_value ADMIN_DOMAIN)"
+}
+
+# Yangi migratsiyalar qo'llanishidan oldin zaxira nusxa (build'dan keyin — tiklash nuqtasi eng yangi
+# bo'lsin). Baza hali yo'q bo'lsa (birinchi o'rnatish) — kerak emas. Zaxira olinmasa — deploy to'xtaydi.
+# BACKUP=0 — ataylab o'tkazib yuborish
+backup_before_migrations() {
+  if [ "${BACKUP:-1}" = 0 ]; then
+    info "BACKUP=0 — deploy oldidan zaxira olinmaydi"
+    return 0
+  fi
+  docker volume inspect "${PROJECT}_postgres_data" > /dev/null 2>&1 || return 0
+  info "Migratsiyalardan oldin zaxira nusxa olinmoqda..."
+  compose up -d --no-build --wait --wait-timeout 300 postgres backup
+  compose exec -T backup backup.sh ||
+    die "Zaxira olinmadi — deploy to'xtatildi (ishlab turgan versiya o'zgarmadi). Majburan: BACKUP=0"
 }
 
 # HTTPS sertifikati olinganini tekshirish (konteynerlar sog'lom bo'lsa ham sertifikat DNS yoki
