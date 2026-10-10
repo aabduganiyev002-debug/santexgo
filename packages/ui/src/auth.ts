@@ -51,10 +51,5 @@ export function useLogout() {
   };
 }
 
-/** Kirgandan keyin qaytish manzili (faqat sayt ichidagi yo'l — boshqa saytga yo'naltirib bo'lmaydi). */
-export function safeNextPath(next: string | null | undefined, fallback = '/'): string {
-  if (!next || !next.startsWith('/') || next.startsWith('//') || next.startsWith('/\\')) {
-    return fallback;
-  }
-  return next;
-}
+/** Kirgandan keyin qaytish manzili — @santexgo/shared'da (testlar bilan) */
+export { safeNextPath } from '@santexgo/shared';

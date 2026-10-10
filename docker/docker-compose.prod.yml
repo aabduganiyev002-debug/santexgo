@@ -46,22 +46,23 @@ services:
   redis:
     <<: *service
     image: redis:8-alpine
+    # Parol buyruq argumentlarida emas (serverdagi "ps" da ko'rinmasin): konteyner ichidagi
+    # konfiguratsiya faylida. exec — Redis to'xtash signalini to'g'ridan-to'g'ri oladi
     command:
-      - redis-server
-      - --appendonly
-      - 'yes'
-      - --maxmemory
-      - 256mb
-      - --maxmemory-policy
-      - volatile-lru
-      - --requirepass
-      - ${REDIS_PASSWORD:?REDIS_PASSWORD .env.production da berilishi shart}
+      - sh
+      - -c
+      - |
+        umask 077
+        printf 'requirepass "%s"\n' "$$REDIS_PASSWORD" > /tmp/redis.conf
+        exec redis-server /tmp/redis.conf --appendonly yes --maxmemory 256mb --maxmemory-policy volatile-lru
     environment:
-      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?REDIS_PASSWORD .env.production da berilishi shart}
+      # redis-cli (healthcheck) parolni shu o'zgaruvchidan oladi
+      REDISCLI_AUTH: ${REDIS_PASSWORD}
     volumes:
       - redis_data:/data
     healthcheck:
-      test: ['CMD-SHELL', 'redis-cli -a "$${REDIS_PASSWORD}" --no-auth-warning ping | grep -q PONG']
+      test: ['CMD-SHELL', 'redis-cli ping | grep -q PONG']
       interval: 5s
       timeout: 5s
       retries: 20
@@ -76,8 +77,7 @@ services:
       context: ..
       dockerfile: apps/api/Dockerfile
       target: migrate
-      tags: ['santexgo-migrate:${IMAGE_TAG:-latest}']
-    image: santexgo-migrate:latest
+    image: santexgo-migrate:${IMAGE_TAG:-latest}
     environment:
       DATABASE_URL: *database-url
       SEED_SAMPLE_PRODUCTS: ${SEED_SAMPLE_PRODUCTS:-false}
@@ -92,8 +92,7 @@ services:
       context: ..
       dockerfile: apps/api/Dockerfile
       target: runner
-      tags: ['santexgo-api:${IMAGE_TAG:-latest}']
-    image: santexgo-api:latest
+    image: santexgo-api:${IMAGE_TAG:-latest}
     # Kod o'zgarmas: yozish faqat uploads hajmiga va vaqtinchalik /tmp ga
     read_only: true
     tmpfs: [/tmp]
@@ -141,8 +140,10 @@ services:
       dockerfile: apps/web/Dockerfile
       args:
         NEXT_PUBLIC_SITE_URL: https://${SITE_DOMAIN}
-      tags: ['santexgo-web:${IMAGE_TAG:-latest}']
-    image: santexgo-web:latest
+    image: santexgo-web:${IMAGE_TAG:-latest}
+    # Kod o'zgarmas; Next.js keshi xotirada (diskka yozilmaydi)
+    read_only: true
+    tmpfs: [/tmp]
     cap_drop: [ALL]
     environment:
       API_INTERNAL_URL: http://api:4000
@@ -160,8 +161,10 @@ services:
       args:
         # Admin paneldagi "saytda ko'rish" havolalari uchun
         NEXT_PUBLIC_SITE_URL: https://${SITE_DOMAIN}
-      tags: ['santexgo-admin:${IMAGE_TAG:-latest}']
-    image: santexgo-admin:latest
+    image: santexgo-admin:${IMAGE_TAG:-latest}
+    # Kod o'zgarmas; Next.js keshi xotirada (diskka yozilmaydi)
+    read_only: true
+    tmpfs: [/tmp]
     cap_drop: [ALL]
     environment:
       API_INTERNAL_URL: http://api:4000
@@ -177,10 +180,12 @@ services:
     image: caddy:2-alpine
     cap_drop: [ALL]
     cap_add: [NET_BIND_SERVICE]
+    # Faqat IPv4: IPv6 ulanishlar Docker'ning userland-proxy'si orqali kelib, mijoz IP manzili
+    # yo'qoladi (hammasi bitta IP — rate limit noto'g'ri ishlaydi). DNS'da AAAA yozuv qo'shmang
     ports:
-      - '80:80'
-      - '443:443'
-      - '443:443/udp'
+      - '0.0.0.0:80:80'
+      - '0.0.0.0:443:443'
+      - '0.0.0.0:443:443/udp'
     environment:
       SITE_DOMAIN: ${SITE_DOMAIN:?SITE_DOMAIN berilishi shart}
       ADMIN_DOMAIN: ${ADMIN_DOMAIN:?ADMIN_DOMAIN berilishi shart}
@@ -201,8 +206,7 @@ services:
     <<: *service
     build:
       context: ./backup
-      tags: ['santexgo-backup:${IMAGE_TAG:-latest}']
-    image: santexgo-backup:latest
+    image: santexgo-backup:${IMAGE_TAG:-latest}
     environment:
       PGHOST: postgres
       PGDATABASE: ${POSTGRES_DB:-santexgo}

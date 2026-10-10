@@ -20,6 +20,8 @@ const nextConfig: NextConfig = {
   reactStrictMode: true,
   transpilePackages: ['@santexgo/ui'],
   images: { unoptimized: true },
+  // Server keshi faqat xotirada — konteyner fayl tizimi faqat o'qish uchun (read_only)
+  experimental: { isrFlushToDisk: false },
   // Brauzer API'ga admin panel manzili orqali murojaat qiladi (/api/...) — bitta domen, cookie ishlaydi
   async rewrites() {
     return [{ source: '/api/:path*', destination: `${API_INTERNAL_URL}/api/:path*` }];

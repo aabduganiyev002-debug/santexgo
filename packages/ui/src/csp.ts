@@ -42,7 +42,14 @@ export function buildCsp(nonce: string, { isDev, mediaOrigins }: CspOptions): st
       ...(isDev ? ["'unsafe-eval'"] : []),
     ],
     'style-src': ["'self'", "'unsafe-inline'"],
-    'img-src': ["'self'", 'data:', 'blob:', ...parseOrigins(mediaOrigins)],
+    // Lokal ishlab chiqishda rasmlar lokal S3'dan ham (SeaweedFS, http://localhost:8333) berilishi mumkin
+    'img-src': [
+      "'self'",
+      'data:',
+      'blob:',
+      ...parseOrigins(mediaOrigins),
+      ...(isDev ? ['http://localhost:*', 'http://127.0.0.1:*'] : []),
+    ],
     'font-src': ["'self'", 'data:'],
     'connect-src': ["'self'", ...(isDev ? ['ws:'] : [])],
     'object-src': ["'none'"],

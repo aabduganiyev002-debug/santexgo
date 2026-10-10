@@ -27,10 +27,12 @@ fi
 
 echo "2/3 Joriy baza saqlab qo'yilmoqda: $OLD_DB"
 psql_admin -c "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = '$DB' AND pid <> pg_backend_pid()" > /dev/null
-psql_admin -c "ALTER DATABASE \"$DB\" RENAME TO \"$OLD_DB\""
 
 echo "3/3 Tiklangan baza ishga tushirilmoqda: $DB"
-psql_admin -c "ALTER DATABASE \"$TMP_DB\" RENAME TO \"$DB\""
+# Ikkala nomlash bitta tranzaksiyada: yoki ikkalasi bajariladi, yoki hech biri (baza nomsiz qolmaydi)
+psql_admin --single-transaction \
+  -c "ALTER DATABASE \"$DB\" RENAME TO \"$OLD_DB\"" \
+  -c "ALTER DATABASE \"$TMP_DB\" RENAME TO \"$DB\""
 
 echo "Tayyor: $(basename "$FILE") tiklandi. Eski baza: $OLD_DB"
 echo "Hammasi joyida bo'lsa, uni o'chirish: sh scripts/prod.sh psql -c 'DROP DATABASE \"$OLD_DB\"'"

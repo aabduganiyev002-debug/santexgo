@@ -21,6 +21,9 @@ const nextConfig: NextConfig = {
   transpilePackages: ['@santexgo/ui'],
   // Rasmlar API'da allaqachon WebP va kerakli o'lchamlarda tayyorlanadi
   images: { unoptimized: true },
+  // API javoblari keshi faqat xotirada (LRU, cacheMaxMemorySize — standart 50 MB): diskka yozilsa,
+  // har bir noyob qidiruv/filtr so'rovi alohida fayl bo'lib qoladi va disk cheksiz to'ladi
+  experimental: { isrFlushToDisk: false },
   // Brauzer API'ga sayt manzili orqali murojaat qiladi (/api/...) — bitta domen, CORS kerak emas.
   // Production'da /api ni Caddy to'g'ridan-to'g'ri API'ga yuboradi; bu qoida zaxira sifatida qoladi.
   async rewrites() {

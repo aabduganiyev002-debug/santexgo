@@ -8,7 +8,7 @@
       "outputs": [".next/**", "!.next/cache/**"]
     },
     "dev": {
-      "env": ["API_INTERNAL_URL"]
+      "env": ["API_INTERNAL_URL", "MEDIA_ORIGIN"]
     }
   }
 }

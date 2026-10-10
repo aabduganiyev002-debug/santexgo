@@ -3,8 +3,10 @@
  * namunaviy mahsulotlar, chegirmalar, homepage tugmalari, sozlamalar va birinchi admin.
  *
  * Qayta ishga tushirish xavfsiz: dublikat yaratilmaydi, mavjud ombor qoldiqlari, sozlamalar
- * va admin paroli o'zgartirilmaydi. Lokal muhitda ma'lumotnomalar seed'dagi holatga yangilanadi;
- * production'da (SEED_SAMPLE_PRODUCTS=false) faqat yo'qlari yoziladi — admin o'zgartirganlari qoladi.
+ * va admin paroli o'zgartirilmaydi. Lokal muhitda ma'lumotnomalar seed'dagi holatga yangilanadi.
+ * Production'da (SEED_SAMPLE_PRODUCTS=false) namunaviy brend, mahsulot va chegirmalarsiz; ma'lumotnomalar
+ * faqat bo'sh bazaga (birinchi o'rnatishda) yoziladi — admin o'zgartirgan yoki o'chirgan yozuvlar
+ * keyingi ishga tushirishlarda qayta paydo bo'lmaydi.
  *
  * Ishga tushirish: pnpm db:seed
  * Faqat admin yaratish/tayinlash: SEED_SCOPE=admin pnpm db:seed
@@ -82,10 +84,12 @@ function attributeValueData(value: AttributeValue): {
 }
 
 /**
- * overwrite=false (production): mavjud yozuvlarga tegilmaydi, faqat yo'qlari yaratiladi.
- * overwrite=true (lokal): yozuvlar seed'dagi holatga keltiriladi.
+ * withSamples=true (lokal): yozuvlar seed'dagi holatga keltiriladi, namunaviy brendlar va
+ * variant guruhlari ham yoziladi. withSamples=false (production): mavjud yozuvlarga tegilmaydi,
+ * brendlar va guruhlar (ular namunaviy mahsulotlar uchun) yaratilmaydi.
  */
-async function seedReferenceData(prisma: PrismaClient, overwrite: boolean) {
+async function seedReferenceData(prisma: PrismaClient, withSamples: boolean) {
+  const overwrite = withSamples;
   const warehouse = await prisma.warehouse.upsert({
     where: { code: WAREHOUSE.code },
     update: {},
@@ -138,7 +142,7 @@ async function seedReferenceData(prisma: PrismaClient, overwrite: boolean) {
   }
 
   const brandIds = new Map<string, string>();
-  for (const b of BRANDS) {
+  for (const b of withSamples ? BRANDS : []) {
     const row = await prisma.brand.upsert({
       where: { slug: b.slug },
       update: overwrite ? b : {},
@@ -148,7 +152,7 @@ async function seedReferenceData(prisma: PrismaClient, overwrite: boolean) {
   }
 
   const groupIds = new Map<string, string>();
-  for (const g of GROUPS) {
+  for (const g of withSamples ? GROUPS : []) {
     const existing = await prisma.productGroup.findFirst({ where: { name: g.name } });
     const row = !existing
       ? await prisma.productGroup.create({ data: g })
@@ -374,7 +378,7 @@ async function refreshSearchText(prisma: PrismaClient): Promise<void> {
   }
 }
 
-async function seedHomeAndSettings(
+async function seedHomeCollections(
   prisma: PrismaClient,
   refs: Awaited<ReturnType<typeof seedReferenceData>>,
   overwrite: boolean,
@@ -393,8 +397,10 @@ async function seedHomeAndSettings(
       create: { ...data, slug: c.slug },
     });
   }
+}
 
-  // Sozlamalar faqat yo'q bo'lsa yoziladi — admin o'zgartirganlari saqlanib qoladi
+/** Sozlamalar faqat yo'q bo'lsa yoziladi — admin o'zgartirganlari saqlanib qoladi */
+async function seedSettings(prisma: PrismaClient): Promise<void> {
   for (const [key, value] of Object.entries(SETTINGS)) {
     await prisma.setting.upsert({
       where: { key },
@@ -481,26 +487,39 @@ async function main(): Promise<void> {
       console.info(`✔ ${await seedAdmin(prisma, adminInput)}`);
       return;
     }
-    const refs = await seedReferenceData(prisma, withSamples);
-    let productsMessage = 'Namunaviy mahsulotlar yozilmadi (SEED_SAMPLE_PRODUCTS=false)';
-    if (withSamples) {
-      const { productIds, restocked } = await seedProducts(prisma, refs);
-      await seedDiscounts(prisma, refs, productIds);
-      const repriced = await recalculatePrices(prisma);
-      await refreshSearchText(prisma);
-      productsMessage =
-        `Mahsulotlar: ${productIds.size} (yangi qoldiq yozilgan: ${restocked}); ` +
-        `chegirmalar: ${DISCOUNTS.length}, narxi yangilangan mahsulotlar: ${repriced}`;
+    const messages: string[] = [];
+    // Production: ma'lumotnomalar faqat birinchi o'rnatishda — keyin ularni admin boshqaradi
+    if (!withSamples && (await prisma.category.count()) > 0) {
+      messages.push(
+        "Ma'lumotnomalar allaqachon bor — o'zgartirilmadi (admin panel orqali boshqariladi)",
+      );
+    } else {
+      const refs = await seedReferenceData(prisma, withSamples);
+      messages.push(
+        `Materiallar: ${refs.materialIds.size}, kategoriyalar: ${refs.categoryIds.size}, ` +
+          `brendlar: ${refs.brandIds.size}`,
+      );
+      if (withSamples) {
+        const { productIds, restocked } = await seedProducts(prisma, refs);
+        await seedDiscounts(prisma, refs, productIds);
+        const repriced = await recalculatePrices(prisma);
+        await refreshSearchText(prisma);
+        messages.push(
+          `Mahsulotlar: ${productIds.size} (yangi qoldiq yozilgan: ${restocked}); ` +
+            `chegirmalar: ${DISCOUNTS.length}, narxi yangilangan mahsulotlar: ${repriced}`,
+        );
+      } else {
+        messages.push(
+          'Namunaviy brend, mahsulot va chegirmalar yozilmadi (SEED_SAMPLE_PRODUCTS=false)',
+        );
+      }
+      await seedHomeCollections(prisma, refs, withSamples);
     }
-    await seedHomeAndSettings(prisma, refs, withSamples);
-    const adminMessage = await seedAdmin(prisma, adminInput);
+    await seedSettings(prisma);
+    messages.push(await seedAdmin(prisma, adminInput));
 
     console.info('✔ Seed tugadi');
-    console.info(
-      `  Materiallar: ${refs.materialIds.size}, kategoriyalar: ${refs.categoryIds.size}, brendlar: ${refs.brandIds.size}`,
-    );
-    console.info(`  ${productsMessage}`);
-    console.info(`  ${adminMessage}`);
+    for (const message of messages) console.info(`  ${message}`);
   } finally {
     await prisma.$disconnect();
   }
