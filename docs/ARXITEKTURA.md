@@ -59,16 +59,16 @@ API manzillari `/api/v1/...` ko'rinishida — versiyalangan. Kelajakda API o'zga
 
 **Serverda (production).** Hammasi bitta serverda, Docker Compose bilan ishlaydi ([`docker/docker-compose.prod.yml`](../docker/docker-compose.prod.yml)); o'rnatish, yangilash va backup — [DEPLOY.md](DEPLOY.md).
 
-| Konteyner           | Vazifasi                                                                                                                                             |
-| ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `caddy`             | Internetga ochiq yagona xizmat (80/443): Let's Encrypt sertifikatlari, HSTS, siqish. `/api/*` → API, qolgani → sayt yoki admin panel (domenga qarab) |
-| `web`, `admin`      | Next.js "standalone" serverlari; sayt sahifalarni API'dan ichki tarmoq orqali olib serverda tayyorlaydi                                              |
-| `api`               | NestJS; kod faqat o'qish uchun (yozish — faqat yuklangan fayllar papkasiga)                                                                          |
-| `migrate`           | Har deploy'da bazaga yangi migratsiyalarni qo'llaydi va to'xtaydi — API undan keyin ishga tushadi                                                    |
-| `postgres`, `redis` | Ichki tarmoqda: internetdan ko'rinmaydi va o'zi internetga chiqa olmaydi                                                                             |
-| `backup`            | Har kuni `pg_dump` (yaroqliligi tekshiriladi) va yuklangan fayllar nusxasi; eski zaxiralarni tozalaydi                                               |
+| Konteyner           | Vazifasi                                                                                                                                                                                                                                                                                        |
+| ------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `caddy`             | Internetga ochiq yagona xizmat (80/443, faqat IPv4): Let's Encrypt sertifikatlari, HSTS, siqish. `/api/*` → API, qolgani → sayt yoki admin panel (domenga qarab). `/api` ga begona `Origin` bilan kelgan so'rovlarni `403` bilan rad etadi; CSP bermagan javoblarga qat'iy standart CSP qo'yadi |
+| `web`, `admin`      | Next.js "standalone" serverlari; sayt sahifalarni API'dan ichki tarmoq orqali olib serverda tayyorlaydi. Konteynerlar faqat o'qish uchun, API javoblari keshi faqat xotirada                                                                                                                    |
+| `api`               | NestJS; kod faqat o'qish uchun (yozish — faqat yuklangan fayllar papkasiga)                                                                                                                                                                                                                     |
+| `migrate`           | Har deploy'da bazaga yangi migratsiyalarni qo'llaydi va to'xtaydi — API undan keyin ishga tushadi                                                                                                                                                                                               |
+| `postgres`, `redis` | Ichki tarmoqda: internetdan ko'rinmaydi va o'zi internetga chiqa olmaydi                                                                                                                                                                                                                        |
+| `backup`            | Har kuni `pg_dump` (yaroqliligi tekshiriladi) va yuklangan fayllar nusxasi; eski zaxiralarni tozalaydi (eng yangi 3 tasi har doim qoladi)                                                                                                                                                       |
 
-Boshqaruv — [`scripts/prod.sh`](../scripts/prod.sh): `init` (tasodifiy parollar bilan sozlamalar), `deploy` (build + migratsiya + ishga tushirish, versiya = git commit), `rollback`, `backup`/`restore`, `logs`, `status`.
+Boshqaruv — [`scripts/prod.sh`](../scripts/prod.sh): `init` (tasodifiy parollar bilan sozlamalar), `deploy` (avtomatik zaxira + build + migratsiya + ishga tushirish; versiya = UTC vaqt va git commit, masalan `20261010-064215-5b48e2d`, oxirgi 5 tasi saqlanadi), `versions`/`rollback`, `backup`/`restore`, `logs`, `status`.
 
 ---
 
@@ -336,77 +336,81 @@ Qidiruv alohida xizmatsiz, PostgreSQL ichida ishlaydi (pg_trgm indeksi): narx va
 ```
 santexgo/
 ├── apps/
-│   ├── api/                      Backend (NestJS)
-│   │   ├── Dockerfile            Production image ("runner") va migratsiyalar ("migrate")
+│   ├── api/                        Backend (NestJS)
+│   │   ├── Dockerfile              Production image ("runner") va migratsiyalar ("migrate")
 │   │   ├── prisma/
-│   │   │   ├── schema.prisma     Baza sxemasi
-│   │   │   ├── migrations/       Baza o'zgarishlari tarixi
-│   │   │   └── seed/             Boshlang'ich ma'lumotlar
+│   │   │   ├── schema.prisma       Baza sxemasi
+│   │   │   ├── migrations/         Baza o'zgarishlari tarixi
+│   │   │   └── seed/               Boshlang'ich ma'lumotlar
 │   │   └── src/
-│   │       ├── main.ts           Ishga tushirish
-│   │       ├── app.setup.ts      Xavfsizlik sarlavhalari (Helmet), CORS, proksi, Swagger
-│   │       ├── config/           Muhit o'zgaruvchilari tekshiruvi
-│   │       ├── common/           Umumiy: guardlar, validatsiya, xatolar formati
-│   │       ├── infra/            Prisma, Redis, fayl saqlash (disk/S3), SMS ulanishlari
-│   │       └── modules/          Biznes modullar:
-│   │           ├── auth/         ro'yxatdan o'tish, login, SMS, parol tiklash
-│   │           ├── account/      profil, manzillar, mening buyurtmalarim
-│   │           ├── catalog/      brendlar, kategoriyalar, mahsulotlar (sayt uchun)
-│   │           ├── admin/        admin panel API'lari
-│   │           ├── pricing/      chegirmalar va narx hisoblash
-│   │           ├── search/       qidiruv va filtrlar
-│   │           ├── inventory/    ombor
-│   │           ├── cart/         savatcha va sevimlilar
-│   │           ├── orders/       buyurtmalar
-│   │           ├── stats/        statistika
-│   │           └── health/       monitoring
-│   ├── web/                      Mijozlar sayti (Next.js)
-│   │   ├── Dockerfile            Production image
+│   │       ├── main.ts             Ishga tushirish
+│   │       ├── app.setup.ts        Xavfsizlik sarlavhalari (Helmet), CORS, proksi, Swagger
+│   │       ├── config/             Muhit o'zgaruvchilari tekshiruvi
+│   │       ├── common/             Umumiy: guardlar, validatsiya, xatolar formati
+│   │       ├── infra/              Prisma, Redis, fayl saqlash (disk/S3), SMS ulanishlari
+│   │       └── modules/            Biznes modullar:
+│   │           ├── auth/           ro'yxatdan o'tish, login, SMS, parol tiklash
+│   │           ├── account/        kabinet: profil, manzillar, sevimlilar
+│   │           ├── catalog/        brendlar, kategoriyalar, mahsulotlar, qidiruv va filtrlar (sayt uchun)
+│   │           ├── content/        do'kon sozlamalari: aloqa, yetkazib berish narxi
+│   │           ├── admin/          admin panel API'lari: katalog, buyurtmalar, chegirmalar,
+│   │           │                   mijozlar, kontent (bannerlar, tugmalar, sozlamalar), statistika
+│   │           ├── pricing/        chegirmalar va narx hisoblash
+│   │           ├── inventory/      ombor
+│   │           ├── cart/           savatcha
+│   │           ├── orders/         buyurtma berish, mijozning buyurtmalari, statuslar
+│   │           ├── notifications/  buyurtma holati haqida mijozga SMS
+│   │           ├── audit/          admin amallari jurnali (audit_logs)
+│   │           └── health/         monitoring
+│   ├── web/                        Mijozlar sayti (Next.js)
+│   │   ├── Dockerfile              Production image
 │   │   └── src/
-│   │       ├── app/              Sahifalar (URL = papka)
-│   │       ├── components/       UI bloklar: mahsulot kartasi, filtrlar...
-│   │       ├── lib/              API client, yordamchilar
-│   │       └── proxy.ts          Kabinetga kirish tekshiruvi, CSP (har so'rovda nonce)
-│   └── admin/                    Admin panel (Next.js) — xuddi shunday tuzilma
+│   │       ├── app/                Sahifalar (URL = papka)
+│   │       ├── components/         UI bloklar: mahsulot kartasi, filtrlar...
+│   │       ├── lib/                API client, yordamchilar
+│   │       └── proxy.ts            Kabinetga kirish tekshiruvi, CSP (har so'rovda nonce)
+│   └── admin/                      Admin panel (Next.js) — xuddi shunday tuzilma
 ├── packages/
-│   ├── shared/                   Umumiy kod: narx/chegirma hisobi, statuslar,
-│   │                             telefon formati, validatsiya sxemalari
-│   └── ui/                       Sayt va admin panel uchun umumiy UI, API klient,
-│                                 Content-Security-Policy (src/csp.ts)
+│   ├── shared/                     Umumiy kod: narx/chegirma hisobi, statuslar,
+│   │                               telefon formati, validatsiya sxemalari
+│   └── ui/                         Sayt va admin panel uchun umumiy UI, API klient,
+│                                   Content-Security-Policy (src/csp.ts)
 ├── docker/
-│   ├── docker-compose.yml        Lokal: PostgreSQL, Redis (ixtiyoriy SeaweedFS)
-│   ├── docker-compose.prod.yml   Production: barcha xizmatlar bitta serverda
-│   ├── Caddyfile                 HTTPS, domenlar, admin API izolyatsiyasi
-│   ├── backup/                   Kunlik zaxira va tiklash skriptlari
-│   └── .env.production.example   Production sozlamalari namunasi
-├── docs/                         Hujjatlar (ARXITEKTURA, ORNATISH, DEPLOY)
+│   ├── docker-compose.yml          Lokal: PostgreSQL, Redis (ixtiyoriy SeaweedFS)
+│   ├── docker-compose.prod.yml     Production: barcha xizmatlar bitta serverda
+│   ├── Caddyfile                   HTTPS, domenlar, admin API izolyatsiyasi
+│   ├── backup/                     Kunlik zaxira va tiklash skriptlari
+│   └── .env.production.example     Production sozlamalari namunasi
+├── docs/                           Hujjatlar (ARXITEKTURA, ORNATISH, DEPLOY)
 └── scripts/
-    ├── setup.mjs                 Kompyuterda o'rnatish (pnpm setup:local)
-    └── prod.sh                   Production: deploy, backup, restore, rollback...
+    ├── setup.mjs                   Kompyuterda o'rnatish (pnpm setup:local)
+    └── prod.sh                     Production: deploy, backup, restore, rollback...
 ```
 
 ---
 
 ## 11. Xavfsizlik
 
-| Talab               | Qanday bajariladi                                                                                                                                                                                                                  |
-| ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Parol xeshlash      | Argon2id (OWASP tavsiyasi). Parolning o'zi hech qayerda saqlanmaydi.                                                                                                                                                               |
-| Autentifikatsiya    | Qisqa muddatli access token (15 daqiqa) + uzoq muddatli refresh token (30 kun, har ishlatilganda yangilanadi). Ikkalasi ham `httpOnly` cookie'da — JavaScript ularni o'qiy olmaydi (XSS'dan himoya).                               |
-| Avtorizatsiya       | Har bir API manzili sukut bo'yicha yopiq; ochiqlari aniq belgilanadi. Admin API'lari faqat `ADMIN` roli uchun. Mijoz faqat o'z buyurtmalarini ko'radi.                                                                             |
-| SMS kodlar          | 6 xonali, 5 daqiqa, 5 ta urinish, bazada faqat xeshi saqlanadi; telefon va IP bo'yicha yuborish cheklangan                                                                                                                         |
-| Input validatsiya   | Har bir so'rov Zod sxemasi bilan tekshiriladi; ortiqcha maydonlar tashlab yuboriladi                                                                                                                                               |
-| SQL injection       | Barcha so'rovlar parametrlangan (Prisma); murakkab filtrlar ham faqat parametrlar bilan                                                                                                                                            |
-| XSS                 | React avtomatik ekranlaydi; sayt va admin panelda har so'rovda yangi nonce bilan qat'iy Content-Security-Policy (`packages/ui/src/csp.ts`) — sahifaga tushib qolgan begona skript bajarilmaydi; API'da Helmet sarlavhalari         |
-| CSRF                | `SameSite` cookie + maxsus sarlavha talabi                                                                                                                                                                                         |
-| Rate limiting       | Barcha API'ga IP bo'yicha limit (Caddy ortida mijozning haqiqiy IP manzili); login, SMS va parol tiklashga qattiqroq limit (Redis)                                                                                                 |
-| Brute-force         | Bir telefon raqamiga ko'p noto'g'ri parol kiritilsa, vaqtincha bloklanadi                                                                                                                                                          |
-| Audit               | Admin amallari jurnali: kim, qachon, nimani o'zgartirdi                                                                                                                                                                            |
-| Maxfiy ma'lumotlar  | Parollar va kalitlar faqat `.env` / `docker/.env.production` da (faqat egasi o'qiy oladi), GitHub'ga va Docker image'larga tushmaydi; production parollari `prod.sh init` tomonidan tasodifiy yaratiladi                           |
-| HTTPS               | Caddy avtomatik Let's Encrypt sertifikati (o'zi yangilaydi), HTTP → HTTPS, HSTS (1 yil)                                                                                                                                            |
-| Admin izolyatsiyasi | Admin panel alohida domenda; admin API (`/api/v1/admin/...`) sayt domenida yopiq (Caddy 404 qaytaradi) — saytdagi biror zaiflik admin cookie'lari bilan boshqaruv so'rovi yubora olmaydi                                           |
-| Server              | Internetga faqat 80/443 (Caddy) ochiq; PostgreSQL va Redis ichki tarmoqda. Konteynerlar root'siz, ortiqcha Linux imtiyozlarisiz (`cap_drop`, `no-new-privileges`), API kodi faqat o'qish uchun; Swagger production'da o'chiq       |
-| Zaxira nusxa        | Har kuni avtomatik: baza (`pg_dump`, yaroqliligi tekshiriladi) va yuklangan fayllar; tiklash avval alohida bazaga yoziladi, joriy baza o'chirilmaydi. Serverdan tashqariga nusxa — [DEPLOY.md](DEPLOY.md#7-zaxira-nusxalar-backup) |
+| Talab               | Qanday bajariladi                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Parol xeshlash      | Argon2id (OWASP tavsiyasi). Parolning o'zi hech qayerda saqlanmaydi.                                                                                                                                                                                                                                                                                                                                                                                 |
+| Autentifikatsiya    | Qisqa muddatli access token (15 daqiqa) + uzoq muddatli refresh token (30 kun, har ishlatilganda yangilanadi). Ikkalasi ham `httpOnly` cookie'da — JavaScript ularni o'qiy olmaydi (XSS'dan himoya).                                                                                                                                                                                                                                                 |
+| Avtorizatsiya       | Har bir API manzili sukut bo'yicha yopiq; ochiqlari aniq belgilanadi. Admin API'lari faqat `ADMIN` roli uchun. Mijoz faqat o'z buyurtmalarini ko'radi.                                                                                                                                                                                                                                                                                               |
+| SMS kodlar          | 6 xonali, 5 daqiqa, 5 ta urinish, bazada faqat xeshi saqlanadi; telefon va IP bo'yicha yuborish cheklangan                                                                                                                                                                                                                                                                                                                                           |
+| Input validatsiya   | Har bir so'rov Zod sxemasi bilan tekshiriladi; ortiqcha maydonlar tashlab yuboriladi                                                                                                                                                                                                                                                                                                                                                                 |
+| SQL injection       | Barcha so'rovlar parametrlangan (Prisma); murakkab filtrlar ham faqat parametrlar bilan                                                                                                                                                                                                                                                                                                                                                              |
+| XSS                 | React avtomatik ekranlaydi; sayt va admin panelda har so'rovda yangi nonce bilan qat'iy Content-Security-Policy (`packages/ui/src/csp.ts`) — sahifaga tushib qolgan begona skript bajarilmaydi; ilova CSP bermagan javoblarga Caddy eng qat'iy standart CSP qo'yadi (`default-src 'none'`), shuning uchun har bir HTML javob CSP bilan; API'da Helmet sarlavhalari                                                                                   |
+| CSRF                | `SameSite` cookie + API'da `Origin`/`Referer` tekshiruvi (ma'lumot o'zgartiradigan so'rovlar faqat o'z domenidan); production'da Caddy `/api` ga begona `Origin` bilan kelgan har qanday so'rovni `403` bilan rad etadi                                                                                                                                                                                                                              |
+| CORS                | Production'da CORS ro'yxati (`CORS_ORIGINS`) ataylab bo'sh: sayt va admin panel API'ga o'z domeni orqali murojaat qiladi, boshqa domendagi sahifa API javobini o'qiy olmaydi                                                                                                                                                                                                                                                                         |
+| Yo'naltirish        | Kirishdan keyingi qaytish manzili (`?next=`) tekshiriladi (`packages/shared/src/redirect.ts`): faqat shu sayt ichidagi yo'l — havola orqali boshqa saytga yo'naltirib bo'lmaydi                                                                                                                                                                                                                                                                      |
+| Rate limiting       | Barcha API'ga IP bo'yicha limit (Caddy ortida mijozning haqiqiy IP manzili); login, SMS va parol tiklashga qattiqroq limit (Redis)                                                                                                                                                                                                                                                                                                                   |
+| Brute-force         | Bir telefon raqamiga ko'p noto'g'ri parol kiritilsa, vaqtincha bloklanadi                                                                                                                                                                                                                                                                                                                                                                            |
+| Audit               | Admin amallari jurnali: kim, qachon, nimani o'zgartirdi                                                                                                                                                                                                                                                                                                                                                                                              |
+| Maxfiy ma'lumotlar  | Parollar va kalitlar faqat `.env` / `docker/.env.production` da (faqat egasi o'qiy oladi), GitHub'ga va Docker image'larga tushmaydi; production parollari `prod.sh init` tomonidan tasodifiy yaratiladi                                                                                                                                                                                                                                             |
+| HTTPS               | Caddy avtomatik Let's Encrypt sertifikati (o'zi yangilaydi), HTTP → HTTPS, HSTS (1 yil)                                                                                                                                                                                                                                                                                                                                                              |
+| Admin izolyatsiyasi | Admin panel alohida domenda; admin API (`/api/v1/admin/...`) sayt domenida yopiq (Caddy 404 qaytaradi) — saytdagi biror zaiflik admin cookie'lari bilan boshqaruv so'rovi yubora olmaydi. Sayt va admin domeni brauzerdan bir-birining API'sini ham chaqira olmaydi (CORS bo'sh, begona `Origin` — `403`)                                                                                                                                            |
+| Server              | Internetga faqat 80/443 (Caddy) ochiq, faqat IPv4'da (IPv6 ulanishlarda Docker mijoz IP manzilini yo'qotadi — rate limit uchun); PostgreSQL va Redis ichki tarmoqda, Redis paroli jarayonlar ro'yxatida ko'rinmaydi. Konteynerlar root'siz, ortiqcha Linux imtiyozlarisiz (`cap_drop`, `no-new-privileges`); API, sayt va admin panel konteynerlari faqat o'qish uchun (Next.js keshi faqat xotirada — disk to'lmaydi); Swagger production'da o'chiq |
+| Zaxira nusxa        | Har kuni avtomatik (va har `deploy` oldidan): baza (`pg_dump`, yaroqliligi tekshiriladi) va yuklangan fayllar; eng yangi 3 ta zaxira muddatidan qat'i nazar saqlanadi. Tiklash avval alohida bazaga yoziladi, bazalar bitta tranzaksiyada almashtiriladi, joriy baza o'chirilmaydi. Serverdan tashqariga nusxa — [DEPLOY.md](DEPLOY.md#7-zaxira-nusxalar-backup)                                                                                     |
 
 ---
 

@@ -29,8 +29,8 @@ sh scripts/prod.sh deploy        # build, migratsiyalar, HTTPS va ishga tushiris
 sh scripts/prod.sh seed          # kategoriyalar, materiallar, ombor
 sh scripts/prod.sh admin         # admin akkaunt
 
-# Keyinchalik yangilash:
-sh scripts/prod.sh backup && git pull && sh scripts/prod.sh deploy
+# Keyinchalik yangilash (deploy avval zaxira nusxa oladi):
+git pull && sh scripts/prod.sh deploy
 ```
 
 ## 1. Nima o'rnatiladi
@@ -71,8 +71,9 @@ Hammasi bitta serverda, Docker konteynerlarida ishlaydi (`docker/docker-compose.
 Himoya va ishonchlilik o'z-o'zidan sozlangan:
 
 - Admin API (`/api/v1/admin/...`) faqat admin domeni orqali ishlaydi — sayt domenida Caddy `404` qaytaradi.
+- API'ga boshqa domendagi sahifadan kelgan brauzer so'rovlari (begona `Origin` sarlavhasi bilan) Caddy'da `403` bilan rad etiladi: sayt va admin panel bir-birining API'sini ham chaqira olmaydi (9-bo'lim).
 - Baza va Redis ichki tarmoqda: internetdan ko'rinmaydi va o'zi internetga chiqa olmaydi.
-- Ilovalar root'siz ishlaydi, ortiqcha Linux imtiyozlari olib tashlangan; API kodi faqat o'qish uchun (yozish faqat `uploads` ga).
+- Ilovalar root'siz ishlaydi, ortiqcha Linux imtiyozlari olib tashlangan; API, sayt va admin panel konteynerlari faqat o'qish uchun (yozish faqat `uploads` ga va vaqtinchalik `/tmp` ga). Sayt va admin panel API javoblari keshini faqat xotirada saqlaydi — disk to'lib qolmaydi.
 - Har bir xizmat logi 50 MB dan oshmaydi (5 × 10 MB, eskilari o'chadi).
 - Server qayta yuklansa, hamma xizmatlar o'zi ishga tushadi (`sh scripts/prod.sh stop` bilan to'xtatilganlaridan tashqari).
 
@@ -91,7 +92,7 @@ Kerak: Ubuntu 24.04 LTS o'rnatilgan VPS (virtual server).
 | Tarmoq          | Doimiy (statik) IPv4 manzil       |                 |
 
 - Eng ko'p resurs **build** (image'larni yig'ish) paytida kerak: birinchi `deploy` server kuchiga qarab 10–30 daqiqa davom etadi va xotirani ko'p ishlatadi. Ishlash paytida esa hamma xizmatlar birgalikda bo'sh turganda taxminan 0,5 GB RAM ishlatadi.
-- Diskni Docker image'lari, build keshi (bir necha GB), rollback uchun saqlanadigan oxirgi 5 versiya, baza va zaxira nusxalar egallaydi.
+- Diskni Docker image'lari, build keshi (bir necha GB; bir haftadan eskisini `deploy` o'zi tozalaydi), rollback uchun saqlanadigan oxirgi 5 versiya, baza va zaxira nusxalar egallaydi.
 - ARM (arm64) serverlarda sinab ko'rilmagan — x86_64 (amd64) ni tanlang.
 
 **Qayerda joylashtirish:**
@@ -132,7 +133,7 @@ Domen sotib oling (`.uz` domenlari akkreditatsiyalangan registratorlar orqali) v
   nslookup admin.santexgo.uz
   ```
 
-- **AAAA (IPv6)** yozuv faqat server IPv6 manziliga ega bo'lsa va u aynan shu serverniki bo'lsa qo'shilsin. Noto'g'ri yoki eski AAAA yozuv sertifikat olishni buzadi.
+- **AAAA (IPv6) yozuv qo'shmang**, server IPv6 manziliga ega bo'lsa ham; registrator yoki provayder uni avtomatik qo'shgan bo'lsa — o'chiring. Sayt portlari (80/443) ataylab faqat IPv4'da ochiq, chunki Docker IPv6 ulanishlarni o'zining "userland-proxy"si orqali uzatganda mijozning IP manzili yo'qoladi — barcha IPv6 mijozlar bitta IP bo'lib ko'rinardi va bitta so'rov limitini (rate limit) bo'lishib qolardi. AAAA yozuv bo'lsa, brauzerlar va Let's Encrypt avval IPv6 orqali ulanishga urinadi va javob olmaydi.
 - **Cloudflare** DNS'ida yozuvlar **"DNS only"** (kulrang bulut) bo'lishi kerak. Proksi (to'q sariq bulut) yoqilsa, API barcha mijozlarni Cloudflare IP manzillari orqali ko'radi va so'rov limitlari noto'g'ri ishlaydi.
 - HTTPS sertifikatini olish uchun Let's Encrypt serverga **80 va 443 portlar** orqali ulanadi: DNS to'g'ri va portlar ochiq bo'lishi shart. DNS hali tarqalmagan bo'lsa ham `deploy` ishlaydi — Caddy sertifikatni keyinroq o'zi qayta urinib oladi.
 - `www` yozuvi bo'lmasa, faqat `www.santexgo.uz` ishlamaydi (Caddy logida shu nom uchun xato chiqadi), asosiy sayt ishlayveradi.
@@ -298,21 +299,21 @@ nano docker/.env.production
 
 (saqlash: **Ctrl + O**, Enter; chiqish: **Ctrl + X**). Qiymatda `$` belgisi, bo'shliq yoki `#` bo'lsa, uni bittalik qo'shtirnoqqa oling: `ESKIZ_PASSWORD='pa$$word'`.
 
-| O'zgaruvchi                                     | Nima                                                    | Nima qilish kerak                         |
-| ----------------------------------------------- | ------------------------------------------------------- | ----------------------------------------- |
-| `SITE_DOMAIN`, `ADMIN_DOMAIN`, `ACME_EMAIL`     | Domenlar va sertifikat email'i                          | `init` yozgan — tekshiring                |
-| `POSTGRES_PASSWORD`, `REDIS_PASSWORD`           | Baza va Redis parollari (faqat harf va raqam)           | `init` yaratgan — **tegmang**             |
-| `AUTH_SECRET`                                   | Tokenlar va SMS kodlarni imzolash kaliti                | `init` yaratgan — **tegmang**             |
-| `POSTGRES_DB`, `POSTGRES_USER`                  | Baza va foydalanuvchi nomi (`santexgo`)                 | Tegmang                                   |
-| `SMS_PROVIDER`, `ESKIZ_EMAIL`, `ESKIZ_PASSWORD` | Eskiz.uz SMS                                            | **Majburiy** — pastga qarang              |
-| `SMS_SENDER`                                    | Jo'natuvchi nomi yoki raqami (Eskiz'da tasdiqlangan)    | Standart `4546`                           |
-| `SMS_DAILY_LIMIT`                               | Bir kunda yuboriladigan SMS'lar chegarasi               | Standart 2000                             |
-| `ORDER_SMS_ENABLED`                             | Buyurtma holati haqida mijozga SMS                      | `true` — shablonlar tasdiqlangandan keyin |
-| `STORAGE_DRIVER` va `S3_*`, `MEDIA_*`           | Rasmlar qayerda saqlanadi                               | Pastga qarang                             |
-| `APP_TIMEZONE`                                  | Do'kon vaqt zonasi (statistika uchun)                   | `Asia/Tashkent`                           |
-| `DATABASE_POOL_SIZE`                            | API'dan bazaga ulanishlar soni                          | Standart 10                               |
-| `SEED_SAMPLE_PRODUCTS`                          | `seed` namunaviy mahsulot va chegirmalarni ham yozsinmi | `false` (`true` — faqat sinov serveri)    |
-| `BACKUP_CRON`, `BACKUP_KEEP_DAYS`, `BACKUP_DIR` | Zaxira nusxalar jadvali, muddati va papkasi             | [7-bo'lim](#7-zaxira-nusxalar-backup)     |
+| O'zgaruvchi                                     | Nima                                                           | Nima qilish kerak                         |
+| ----------------------------------------------- | -------------------------------------------------------------- | ----------------------------------------- |
+| `SITE_DOMAIN`, `ADMIN_DOMAIN`, `ACME_EMAIL`     | Domenlar va sertifikat email'i                                 | `init` yozgan — tekshiring                |
+| `POSTGRES_PASSWORD`, `REDIS_PASSWORD`           | Baza va Redis parollari (faqat harf va raqam)                  | `init` yaratgan — **tegmang**             |
+| `AUTH_SECRET`                                   | Tokenlar va SMS kodlarni imzolash kaliti                       | `init` yaratgan — **tegmang**             |
+| `POSTGRES_DB`, `POSTGRES_USER`                  | Baza va foydalanuvchi nomi (`santexgo`)                        | Tegmang                                   |
+| `SMS_PROVIDER`, `ESKIZ_EMAIL`, `ESKIZ_PASSWORD` | Eskiz.uz SMS                                                   | **Majburiy** — pastga qarang              |
+| `SMS_SENDER`                                    | Jo'natuvchi nomi yoki raqami (Eskiz'da tasdiqlangan)           | Standart `4546`                           |
+| `SMS_DAILY_LIMIT`                               | Bir kunda yuboriladigan SMS'lar chegarasi                      | Standart 2000                             |
+| `ORDER_SMS_ENABLED`                             | Buyurtma holati haqida mijozga SMS                             | `true` — shablonlar tasdiqlangandan keyin |
+| `STORAGE_DRIVER` va `S3_*`, `MEDIA_*`           | Rasmlar qayerda saqlanadi                                      | Pastga qarang                             |
+| `APP_TIMEZONE`                                  | Do'kon vaqt zonasi (statistika uchun)                          | `Asia/Tashkent`                           |
+| `DATABASE_POOL_SIZE`                            | API'dan bazaga ulanishlar soni                                 | Standart 10                               |
+| `SEED_SAMPLE_PRODUCTS`                          | `seed` namunaviy brend, mahsulot va chegirmalarni ham yozsinmi | `false` (`true` — faqat sinov serveri)    |
+| `BACKUP_CRON`, `BACKUP_KEEP_DAYS`, `BACKUP_DIR` | Zaxira nusxalar jadvali, muddati va papkasi                    | [7-bo'lim](#7-zaxira-nusxalar-backup)     |
 
 Faylda yo'q, lekin qo'shish mumkin: `ACCESS_TOKEN_TTL_MINUTES` (standart 15, 1–60) va `REFRESH_TOKEN_TTL_DAYS` (standart 30, 1–180) — necha kundan keyin mijoz qayta kirishi kerak.
 
@@ -361,15 +362,17 @@ sh scripts/prod.sh deploy
 
 Buyruq:
 
-1. Sozlamalar to'liqligini tekshiradi.
-2. PostgreSQL, Redis va Caddy image'larining yangi (xavfsizlik tuzatishlari bilan) versiyalarini yuklaydi.
-3. API, sayt, admin panel, migrate va backup image'larini build qiladi. Versiya — joriy git commit (masalan, `a724448`).
-4. Bazaga yangi migratsiyalarni qo'llaydi, hamma xizmatlarni ishga tushiradi va ular sog'lom ("healthy") bo'lishini 5 daqiqagacha kutadi.
-5. Eski versiyalarni tozalaydi — rollback uchun oxirgi 5 tasi qoladi.
+1. Sozlamalar to'liqligini tekshiradi (domenlar, parollar, `SMS_PROVIDER=eskiz` va Eskiz akkaunti).
+2. Backup xizmati ishlab turgan bo'lsa (ya'ni birinchi o'rnatishda emas), avval bazaning zaxira nusxasini oladi. Zaxira olinmasa, `deploy` shu yerda to'xtaydi — sayt eski versiyada qoladi.
+3. PostgreSQL, Redis, Caddy va Node.js bazaviy image'larining yangi (xavfsizlik tuzatishlari bilan) versiyalarini yuklaydi. `PULL=0` bilan bu qadam o'tkazib yuboriladi (6.1).
+4. API, sayt, admin panel, migrate va backup image'larini build qiladi. Versiya — UTC vaqt va joriy git commit, masalan `20261010-064215-5b48e2d`; hamma image'lar shu bitta teg bilan belgilanadi. Ishlab turgan versiya (`latest`) faqat **hamma** image muvaffaqiyatli build qilingandan keyin yangisiga o'tadi.
+5. Bazaga yangi migratsiyalarni qo'llaydi, hamma xizmatlarni ishga tushiradi va ular sog'lom ("healthy") bo'lishini 5 daqiqagacha kutadi.
+6. Eski versiyalarni tozalaydi — rollback uchun oxirgi 5 tasi qoladi; bir haftadan eski build keshini ham o'chiradi (`docker builder prune --filter until=168h`).
+7. Sayt HTTPS orqali ochilishini tekshiradi. Sertifikat hali olinmagan bo'lsa, ogohlantiradi: `! https://santexgo.uz hali ochilmayapti (sertifikat olinmagan bo'lishi mumkin)` — xizmatlar baribir ishga tushgan bo'ladi.
 
 Oxirida `▸ Tayyor (versiya ...)` va sayt hamda admin panel manzillari chiqadi. Birinchi marta 10–30 daqiqa ketadi; keyingilari keshdan foydalanib tezroq.
 
-https://santexgo.uz ochilishini tekshiring (katalog hozircha bo'sh). Brauzer sertifikat xatosini ko'rsatsa — DNS hali tarqalmagan yoki port yopiq: [10-bo'lim](#10-muammolar-va-yechimlar).
+https://santexgo.uz ochilishini tekshiring (katalog hozircha bo'sh). `deploy` sertifikat haqida ogohlantirgan yoki brauzer sertifikat xatosini ko'rsatsa — DNS hali tarqalmagan yoki port yopiq: [10-bo'lim](#10-muammolar-va-yechimlar).
 
 ### 5.4. Ma'lumotnomalar (seed)
 
@@ -377,7 +380,9 @@ https://santexgo.uz ochilishini tekshiring (katalog hozircha bo'sh). Brauzer ser
 sh scripts/prod.sh seed
 ```
 
-Bazaga faqat yo'qlari yoziladi, mavjudlariga tegilmaydi (qayta berish xavfsiz): asosiy ombor, materiallar (PPR, PVC, PP, Latun), 11 ta kategoriya va ularning filtr xususiyatlari (diametr, PN...), 2 ta brend (Plastherm, Vero), bosh sahifadagi "Material bo'yicha" tugmalari va do'kon sozlamalari (yetkazib berish 30 000 so'm, 1 000 000 so'mdan bepul). Namunaviy mahsulot va chegirmalar yozilmaydi (`SEED_SAMPLE_PRODUCTS=false`). Katalog saytda 1 daqiqa ichida yangilanadi (API keshi).
+Boshlang'ich ma'lumotnomalar yoziladi: asosiy ombor, materiallar (PPR, PVC, PP, Latun), filtr xususiyatlari (diametr, PN...), 11 ta kategoriya va ularning filtrlari, bosh sahifadagi "Material bo'yicha" tugmalari va do'kon sozlamalari (yetkazib berish 30 000 so'm, 1 000 000 so'mdan bepul). **Brendlar yaratilmaydi** — ularni admin panelda o'zingiz qo'shasiz (5.6). Ikkita namunaviy brend (Plastherm, Vero), variant guruhlari, namunaviy mahsulot va chegirmalar faqat `SEED_SAMPLE_PRODUCTS=true` bo'lsa yoziladi (sinov serveri uchun). Katalog saytda 1 daqiqa ichida yangilanadi (API keshi).
+
+`SEED_SAMPLE_PRODUCTS=false` bo'lganda ma'lumotnomalar faqat birinchi o'rnatishda — bazada hali birorta kategoriya bo'lmaganda yoziladi; keyin ularni admin panel orqali boshqarasiz. `seed` qayta berilsa, ma'lumotnomalarda hech narsa o'zgarmaydi (admin tahrirlagan yoki o'chirgan yozuvlar qayta paydo bo'lmaydi, natijada `Ma'lumotnomalar allaqachon bor — o'zgartirilmadi`), faqat bazada yo'q sozlamalar qo'shiladi — mavjud sozlamalarga tegilmaydi.
 
 ### 5.5. Admin akkaunt
 
@@ -389,16 +394,23 @@ Skript admin telefon raqamini (`+998901234567` ko'rinishida) va parolni (kamida 
 
 - Raqam saytda allaqachon ro'yxatdan o'tgan bo'lsa, o'sha akkauntga admin huquqi beriladi, paroli esa o'zgarmaydi (`Admin mavjud: ... (parol o'zgartirilmadi)`).
 - Bir nechta admin kerak bo'lsa — buyruqni har biri uchun takrorlang.
-- Yangi admin "Admin SantexGo" nomi bilan yaratiladi — ismni saytdagi kabinetda o'zgartirish mumkin.
+- Ism-familiya ixtiyoriy (faqat yangi akkaunt uchun); berilmasa, admin "Admin SantexGo" nomi bilan yaratiladi — ismni keyin saytdagi kabinetda o'zgartirish mumkin:
+
+  ```
+  ADMIN_FIRST_NAME=Ali ADMIN_LAST_NAME=Valiyev sh scripts/prod.sh admin
+  ```
+
+- So'rovlarsiz (masalan, skript ichida): `ADMIN_PHONE` va `ADMIN_PASSWORD` muhit o'zgaruvchilari bilan — `ADMIN_PHONE=+998901234567 ADMIN_PASSWORD='...' sh scripts/prod.sh admin`. Bunda parol terminal buyruqlari tarixida qoladi, shuning uchun qo'lda yaratishda so'rovli usul afzal.
 
 ### 5.6. Admin panelga kirish va do'konni sozlash
 
 https://admin.santexgo.uz → telefon va parol. Birinchi ishlar:
 
 1. **Sozlamalar** — do'kon telefoni, manzili, ish vaqti; yetkazib berish narxi va bepul yetkazish chegarasi.
-2. **Brendlar**, **Kategoriyalar**, **Materiallar va xususiyatlar** — tekshiring, keraksizini o'zgartiring yoki o'chiring.
-3. **Mahsulotlar** — qo'shing: narx, rasmlar, qoldiq (ombor kirimi).
-4. **Bannerlar va bosh sahifa** — slayder va "Material bo'yicha" tugmalari.
+2. **Brendlar** — sotiladigan brendlarni qo'shing (`seed` brend yaratmaydi, mahsulot esa brendsiz qo'shilmaydi).
+3. **Kategoriyalar**, **Materiallar va xususiyatlar** — tekshiring, keraksizini o'zgartiring yoki o'chiring.
+4. **Mahsulotlar** — qo'shing: narx, rasmlar, qoldiq (ombor kirimi).
+5. **Bannerlar va bosh sahifa** — slayder va "Material bo'yicha" tugmalari.
 
 **Admin parolini o'zgartirish.** Admin panelda parol sahifasi yo'q — parol saytdagi kabinetda o'zgartiriladi: https://santexgo.uz/login sahifasida shu telefon va parol bilan kiring → **Kabinet → Profil va xavfsizlik → Parol → Parolni o'zgartirish**. Joriy parol so'raladi; boshqa qurilmalardagi sessiyalar (jumladan, admin panel) yopiladi — admin panelga yangi parol bilan qayta kiring.
 
@@ -421,16 +433,16 @@ https://admin.santexgo.uz → telefon va parol. Birinchi ishlar:
 
 ```
 cd ~/santexgo
-sh scripts/prod.sh backup
 git pull
 sh scripts/prod.sh deploy
 ```
 
+- `deploy` avval bazaning zaxira nusxasini o'zi oladi (migratsiyalar orqaga qaytarilmaydi — 6.3). Xohlasangiz, `git pull` dan oldin qo'lda ham olishingiz mumkin: `sh scripts/prod.sh backup`. Zaxira olinmasa (masalan, disk to'lgan), `deploy` to'xtaydi va sayt eski versiyada qoladi.
 - Bazaga yangi migratsiyalar avtomatik qo'llanadi — qo'lda hech narsa qilinmaydi.
-- Build paytida eski versiya ishlashda davom etadi. Build xato bilan to'xtasa, sayt eski versiyada qoladi.
+- Build paytida eski versiya ishlashda davom etadi. Build xato bilan to'xtasa (bitta image'da bo'lsa ham), sayt eski versiyada qoladi.
 - Faqat almashish paytida (API, sayt va admin panel qayta ishga tushganda) taxminan 1 daqiqagacha sayt javob bermasligi mumkin (`502` xato). Yangilashni mijozlar kam paytda qiling.
-- `backup` — ehtiyot uchun: migratsiyalar orqaga qaytarilmaydi (6.3).
 - `deploy` har safar PostgreSQL, Redis, Caddy va Node.js bazaviy image'larining xavfsizlik yangilanishlarini ham oladi. Kod o'zgarmagan bo'lsa ham oyiga bir marta `deploy` qiling.
+- Docker Hub yuklash limitiga yetilsa (`toomanyrequests`): `PULL=0 sh scripts/prod.sh deploy` — bazaviy image'lar yangilanmaydi, oldingi `deploy` larda yuklanganlari ishlatiladi (shuning uchun birinchi `deploy` da yordam bermaydi). Keyinroq oddiy `deploy` bilan yangilang.
 
 ### 6.2. Sozlamani o'zgartirgandan keyin
 
@@ -448,10 +460,18 @@ Yangi versiyada muammo chiqsa, oldingisiga qaytish mumkin:
 
 ```
 sh scripts/prod.sh versions
-sh scripts/prod.sh rollback a724448
+sh scripts/prod.sh rollback 20261010-064215-5b48e2d
 ```
 
-`versions` saqlangan versiyalarni (git commit qisqa kodi va yaratilgan vaqti) ko'rsatadi; qaysi commit nima ekani — `git log --oneline -10`. Qaytish bir daqiqa atrofida (build qilinmaydi).
+`versions` saqlangan versiyalarni eng yangisidan boshlab ko'rsatadi, ishlab turgani `← hozirgi` bilan belgilanadi:
+
+```
+20261010-071530-556a8e1  ← hozirgi
+20261010-064215-5b48e2d
+20261008-075400-5441b3e
+```
+
+Versiya nomi — `deploy` boshlangan vaqt (UTC, `YYYYMMDD-HHMMSS`) va git commit'ning qisqa kodi; qaysi commit nima ekani — `git log --oneline -10`. Rollback uchun oxirgi 5 ta versiya saqlanadi (API, sayt, admin panel, migrate va backup image'lari bitta teg bilan — ular birga qaytariladi). Qaytish bir daqiqa atrofida (build qilinmaydi).
 
 - **Baza migratsiyalari orqaga qaytarilmaydi.** Yangi versiya bazani o'zgartirgan bo'lsa, eski kod u bilan to'g'ri ishlamasligi mumkin. Unda yangilashdan oldingi zaxirani tiklang (7.4).
 - Keyingi `deploy` yana git'dagi joriy kodni build qiladi — muammo tuzatilmaguncha `deploy` qilmang.
@@ -462,7 +482,7 @@ sh scripts/prod.sh rollback a724448
 
 | Nima                                                             | Qayerda (serverda)                                      | Qancha saqlanadi                                                 |
 | ---------------------------------------------------------------- | ------------------------------------------------------- | ---------------------------------------------------------------- |
-| Baza (`pg_dump`, siqilgan; yozilgandan keyin o'qib tekshiriladi) | `docker/backups/db/santexgo-YYYYMMDD-HHMMSS.dump` (UTC) | `BACKUP_KEEP_DAYS` kun (standart 14)                             |
+| Baza (`pg_dump`, siqilgan; yozilgandan keyin o'qib tekshiriladi) | `docker/backups/db/santexgo-YYYYMMDD-HHMMSS.dump` (UTC) | `BACKUP_KEEP_DAYS` kun (standart 14); eng yangi 3 tasi har doim  |
 | Yuklangan fayllar (rasmlar, PDF)                                 | `docker/backups/uploads/`                               | Doim: faqat yangilari qo'shiladi, o'chirilgan fayllar ham qoladi |
 
 - **Jadval** — `BACKUP_CRON`, cron formatida va **UTC** vaqtida. Toshkent vaqti = UTC + 5 soat:
@@ -476,6 +496,8 @@ sh scripts/prod.sh rollback a724448
 - **Papka** — `BACKUP_DIR` (standart `./backups`, ya'ni `docker/backups`; nisbiy yo'l `docker/` papkasiga nisbatan). Alohida diskka saqlash uchun absolyut yo'l bering, masalan `/mnt/backup/santexgo`.
 - Sozlamani o'zgartirgandan keyin: `sh scripts/prod.sh start`.
 - Backup xizmati ishga tushganda oxirgi 24 soatda zaxira bo'lmasa, darhol bittasini yaratadi. 26 soat davomida yangi zaxira bo'lmasa, `status` da `backup` — `unhealthy`.
+- **Eski zaxiralarni tozalash.** `BACKUP_KEEP_DAYS` dan eski baza zaxiralari o'chiriladi, lekin eng yangi 3 tasi muddatidan qat'i nazar har doim qoladi — zaxira bir necha hafta ishlamay qolsa ham, oxirgi yaxshi nusxalar o'chib ketmaydi. Tozalash yangi zaxiradan **oldin** bajariladi: disk to'lib qolgan bo'lsa ham avval joy bo'shaydi.
+- Zaxira avval vaqtinchalik faylga yoziladi va tekshirilgandan keyingina `.dump` nomini oladi; xato bo'lsa, yarim yozilgan fayl o'chiriladi — ro'yxatda faqat to'liq zaxiralar bo'ladi.
 - Zaxiralarda mijozlarning shaxsiy ma'lumotlari bor, shuning uchun baza fayllari `root` ga tegishli va faqat u o'qiy oladi — ko'chirish uchun `sudo` kerak.
 - Redis zaxiralanmaydi — unda faqat kesh va vaqtinchalik hisoblagichlar.
 
@@ -534,7 +556,7 @@ Skript ogohlantiradi va davom etish uchun `HA` deb yozishni so'raydi (boshqa jav
 
 1. API, sayt va admin panel to'xtatiladi — tiklash tugaguncha sayt ochilmaydi.
 2. Zaxira avval alohida vaqtinchalik bazaga yoziladi. Xato bo'lsa, joriy bazaga tegilmaydi.
-3. Joriy baza o'chirilmaydi — `santexgo_old_<vaqt>` nomi bilan saqlab qo'yiladi, tiklangan baza uning o'rnini oladi.
+3. Joriy baza o'chirilmaydi — `santexgo_old_<vaqt>` nomi bilan saqlab qo'yiladi, tiklangan baza uning o'rnini oladi. Ikkala qayta nomlash bitta tranzaksiyada bajariladi: yoki ikkalasi ham, yoki hech biri — baza hech qachon nomsiz (yarim almashgan) qolmaydi.
 4. Xizmatlar qayta ishga tushadi; zaxira eskiroq versiyadan bo'lsa, yetishmayotgan migratsiyalar avtomatik qo'llanadi.
 
 Zaxira vaqtidan keyingi o'zgarishlar (yangi buyurtmalar, ro'yxatdan o'tganlar) saytdan yo'qoladi, lekin eski bazada saqlanib turadi. Hammasi joyida ekaniga ishonch hosil qilgach, eski bazani o'chirib disk joyini bo'shating (aniq nomni tiklash oxirida skript chiqaradi):
@@ -622,13 +644,11 @@ docker system df
 sudo du -sh docker/backups/*
 ```
 
-Build keshi vaqt o'tishi bilan bir necha GB ga o'sadi. Tozalash xavfsiz (faqat keyingi build sekinroq bo'ladi):
+Eski versiyalarni (oxirgi 5 tasi qoladi) va bir haftadan eski build keshini `deploy` o'zi tozalaydi. Disk tanqis bo'lsa, build keshini to'liq tozalash ham xavfsiz (faqat keyingi build sekinroq bo'ladi):
 
 ```
 docker builder prune -f
 ```
-
-Eski versiyalarni `deploy` o'zi tozalaydi (oxirgi 5 tasi qoladi).
 
 > **Hech qachon** `sh scripts/prod.sh compose down -v` yoki `docker volume prune -a` bermang — baza, rasmlar va sertifikatlar o'chib ketadi. `docker system prune -a` esa rollback uchun saqlangan versiyalarni o'chiradi.
 
@@ -642,11 +662,11 @@ Server o'zi ishdan chiqsa, bu haqda xabar bera olmaydi. Tashqi uptime monitoring
 
 ### 8.5. Muntazam ishlar
 
-| Qachon     | Nima qilish                                                                                                                                                                                                                                              |
-| ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Har hafta  | `status` — hammasi `healthy`; `backups` — yangi zaxiralar bor; `df -h /` — diskning kamida 20% i bo'sh                                                                                                                                                   |
-| Har oy     | `sudo apt update && sudo apt upgrade -y` (Docker yangilansa, konteynerlar bir necha soniyaga qayta ishga tushadi); `/var/run/reboot-required` fayli bo'lsa — mijozlar kam paytda `sudo reboot`; `backup` + `git pull` + `deploy`; tiklashni sinash (7.7) |
-| Har chorak | `docker builder prune -f`; serverdan tashqaridagi nusxani tekshirish; Eskiz balansi; admin akkauntlar ro'yxati                                                                                                                                           |
+| Qachon     | Nima qilish                                                                                                                                                                                                                                                      |
+| ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Har hafta  | `status` — hammasi `healthy`; `backups` — yangi zaxiralar bor; `df -h /` — diskning kamida 20% i bo'sh                                                                                                                                                           |
+| Har oy     | `sudo apt update && sudo apt upgrade -y` (Docker yangilansa, konteynerlar bir necha soniyaga qayta ishga tushadi); `/var/run/reboot-required` fayli bo'lsa — mijozlar kam paytda `sudo reboot`; `git pull` + `deploy` (zaxira avtomatik); tiklashni sinash (7.7) |
+| Har chorak | `docker system df` (build keshi katta bo'lsa — `docker builder prune -f`); serverdan tashqaridagi nusxani tekshirish; Eskiz balansi; admin akkauntlar ro'yxati                                                                                                   |
 
 ## 9. Xavfsizlik
 
@@ -656,9 +676,12 @@ Server o'zi ishdan chiqsa, bu haqda xabar bera olmaydi. Tashqi uptime monitoring
 - [ ] `POSTGRES_PASSWORD` ni faylda shunchaki o'zgartirmang — baza parolni faqat birinchi yaratilganda oladi va API ulana olmay qoladi. To'g'ri tartib: `sh scripts/prod.sh psql` → `\password santexgo` → yangi parol (faqat harf va raqam, masalan `openssl rand -hex 24`) → `\q` → shu parolni faylga yozing → `sh scripts/prod.sh start`.
 - [ ] Admin parollari kamida 12 belgi va boshqa joyda ishlatilmagan; admin akkauntlar faqat kerakli odamlarda. Admin telefon raqami ishonchli bo'lsin — parolni tiklash SMS'i shu raqamga keladi.
 - [ ] SSH faqat kalit bilan, `root` kirishi o'chiq (4.4).
-- [ ] Tashqariga faqat 22, 80 va 443 ochiq (`sudo ufw status`); `postgres`/`redis` ga `ports:` qo'shilmagan (4.5).
+- [ ] Tashqariga faqat 22, 80 va 443 ochiq (`sudo ufw status`); `postgres`/`redis` ga `ports:` qo'shilmagan (4.5). Caddy portlari faqat IPv4'da — DNS'da AAAA yozuv yo'q (3-bo'lim).
 - [ ] Admin API faqat admin domeni orqali — tekshirish: `curl -s -o /dev/null -w '%{http_code}\n' https://santexgo.uz/api/v1/admin/orders` → `404`.
-- [ ] Xavfsizlik sarlavhalari avtomatik: HSTS (1 yil, subdomenlar bilan — `santexgo.uz` ning barcha subdomenlari HTTPS'da ishlashi kerak), har so'rovda yangi nonce bilan qat'iy Content-Security-Policy, `X-Frame-Options: DENY`, `nosniff`. Tekshirish: `curl -sI https://santexgo.uz | grep -iE 'strict-transport|content-security'`. API hujjati (Swagger) production'da o'chiq.
+- [ ] API'ning CORS ro'yxati production'da ataylab bo'sh: sayt va admin panel API'ga o'z domeni orqali murojaat qiladi. `/api` ga begona `Origin` sarlavhasi bilan kelgan so'rovlarni Caddy `403` bilan rad etadi — sayt va admin domeni brauzerdan bir-birining API'sini chaqira olmaydi. `docker/docker-compose.prod.yml` dagi `CORS_ORIGINS` ga domen yozmang. Tekshirish: `curl -s -o /dev/null -w '%{http_code}\n' -H 'Origin: https://admin.santexgo.uz' https://santexgo.uz/api/health` → `403`.
+- [ ] Xavfsizlik sarlavhalari avtomatik: HSTS (1 yil, subdomenlar bilan — `santexgo.uz` ning barcha subdomenlari HTTPS'da ishlashi kerak), `X-Frame-Options: DENY`, `nosniff`, har bir HTML javobda Content-Security-Policy: sayt va admin panel sahifalarida — har so'rovda yangi nonce bilan qat'iy CSP; ilova CSP bermagan javoblarga Caddy eng qat'iy standart CSP qo'yadi (`default-src 'none'` — hech qanday skript ishlamaydi). Tekshirish: `curl -sI https://santexgo.uz | grep -iE 'strict-transport|content-security'`. API hujjati (Swagger) production'da o'chiq.
+- [ ] Kirishdan keyingi qaytish manzili (`/login?next=...`) tekshiriladi: faqat shu sayt ichidagi yo'l qabul qilinadi, havola orqali boshqa saytga yo'naltirib bo'lmaydi.
+- [ ] Sayt, admin panel va API konteynerlari faqat o'qish uchun (read-only); Next.js API javoblari keshini faqat xotirada saqlaydi (har bir yangi qidiruv yoki filtr diskda fayl qoldirmaydi). Redis paroli jarayonlar ro'yxatida (`ps`) ko'rinmaydi — konteyner ichidagi konfiguratsiya faylidan o'qiladi.
 - [ ] Server va Docker yangilanib turadi (4.6 va oylik `apt upgrade`); image'lar — oylik `deploy` (u har safar Node.js, PostgreSQL, Redis va Caddy'ning yangilangan bazaviy image'larini yuklaydi).
 - [ ] PostgreSQL'ning asosiy versiyasini (`postgres:16-alpine`) o'zingiz o'zgartirmang — yangi asosiy versiyaga o'tish zaxira va tiklashni talab qiladi.
 - [ ] Eskiz: `SMS_DAILY_LIMIT` kunlik limiti o'rnatilgan; Eskiz kabinetida balans tugashi haqida ogohlantirish yoqilgan; kabinet paroli kuchli.
@@ -669,7 +692,7 @@ Server o'zi ishdan chiqsa, bu haqda xabar bera olmaydi. Tashqi uptime monitoring
 
 **Sertifikat olinmadi** (brauzerda "xavfsiz emas" yoki `ERR_SSL_...`):
 
-1. `nslookup santexgo.uz` (va `www.`, `admin.`) — server IP'sini ko'rsatyaptimi?
+1. `nslookup santexgo.uz` (va `www.`, `admin.`) — server IP'sini ko'rsatyaptimi? AAAA (IPv6) manzil chiqmasligi kerak (3-bo'lim).
 2. Portlar ochiqmi: `sudo ufw status` va provayder panelidagi firewall. Kompyuteringizdan `curl -I http://santexgo.uz` → `308 Permanent Redirect` va `Server: Caddy` chiqishi kerak; javob kelmasa — 80-port yopiq.
 3. `sh scripts/prod.sh logs caddy` — `challenge`, `obtain`, `error` so'zlari bor qatorlar sababni aytadi.
 4. Tuzatgandan keyin Caddy o'zi qayta urinadi; tezlashtirish: `sh scripts/prod.sh restart caddy`. Ketma-ket ko'p qayta ishga tushirmang — Let's Encrypt urinishlar sonini cheklaydi.
@@ -695,7 +718,7 @@ sudo systemctl disable --now nginx       # nginx bo'lsa
 sh scripts/prod.sh start
 ```
 
-**Disk to'ldi** (`no space left on device`): `df -h /` va `docker system df` bilan nima ko'p joy egallaganini toping; `docker builder prune -f`; `sudo du -sh docker/backups/*` — zaxiralar katta bo'lsa `BACKUP_KEEP_DAYS` ni kamaytiring yoki `BACKUP_DIR` ni alohida diskka ko'chiring; tizim jurnallari: `sudo journalctl --vacuum-size=200M`. Yetmasa — provayderda diskni kengaytiring. 8.3-bo'limdagi taqiqlangan buyruqlarni bermang.
+**Disk to'ldi** (`no space left on device`): `df -h /` va `docker system df` bilan nima ko'p joy egallaganini toping; `docker builder prune -f`; `sudo du -sh docker/backups/*` — zaxiralar katta bo'lsa `BACKUP_KEEP_DAYS` ni kamaytiring (eng yangi 3 tasi baribir qoladi; eskilari keyingi zaxiradan oldin o'chiriladi) yoki `BACKUP_DIR` ni alohida diskka ko'chiring; tizim jurnallari: `sudo journalctl --vacuum-size=200M`. Yetmasa — provayderda diskni kengaytiring. 8.3-bo'limdagi taqiqlangan buyruqlarni bermang. Disk to'la bo'lsa, `deploy` boshidagi zaxira muvaffaqiyatsiz bo'lishi va `deploy` to'xtashi mumkin — avval joy bo'shating.
 
 **Build paytida xotira yetmadi** (`Killed`, `exit code: 137`, `ResourceExhausted`, `JavaScript heap out of memory` yoki server qotib qoladi): swap qo'shing (4.7) va `deploy` ni qayta bering. Bu vaqtda sayt eski versiyada ishlashda davom etadi.
 
@@ -704,20 +727,22 @@ sh scripts/prod.sh start
 1. Saytda **Kirish → Parolni unutdingizmi?** — SMS kod admin telefoniga keladi (admin akkauntlar uchun ham ishlaydi). Yangi parol bilan admin panelga kiring.
 2. Yoki boshqa telefon raqami bilan yangi admin yarating: `sh scripts/prod.sh admin`. Diqqat: mavjud raqam uchun bu buyruq parolni o'zgartirmaydi.
 
-| Xato yoki holat                                                                | Yechim                                                                                                      |
-| ------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------- |
-| `docker/.env.production yo'q. Avval: sh scripts/prod.sh init`                  | 5.1-qadam                                                                                                   |
-| `docker/.env.production allaqachon mavjud — ustiga yozilmaydi`                 | `init` bajarilgan — faylni `nano` bilan tahrirlang                                                          |
-| `ESKIZ_EMAIL va ESKIZ_PASSWORD berilmagan`                                     | 5.2-qadam, Eskiz                                                                                            |
-| `POSTGRES_PASSWORD va REDIS_PASSWORD faqat harf va raqamlardan iborat bo'lsin` | Parolni `openssl rand -hex 24` bilan yarating (bazadagi parolni almashtirish — 9-bo'lim)                    |
-| `santexgo-api:... topilmadi` (`rollback`)                                      | `sh scripts/prod.sh versions` dagi versiyalardan birini bering                                              |
-| `permission denied ... docker.sock`                                            | `sudo usermod -aG docker $USER`, serverdan chiqib qayta kiring                                              |
-| `toomanyrequests` (image yuklashda)                                            | Docker Hub'ning anonim yuklash limiti: bir soat kuting yoki bepul Docker Hub akkaunti bilan `docker login`  |
-| Admin panel: `Bu akkauntda admin panelga kirish huquqi yo‘q`                   | `sh scripts/prod.sh admin` — shu raqamga admin huquqi beriladi                                              |
-| SMS kelmayapti                                                                 | `sh scripts/prod.sh compose logs --tail 300 api \| grep -iE 'eskiz\|sms'` — pastga qarang                   |
-| Rasmlar ko'rinmayapti (S3)                                                     | `MEDIA_PUBLIC_URL`, `MEDIA_ORIGIN` va bucket ochiqligini tekshiring, keyin `sh scripts/prod.sh start`       |
-| `deploy` dan keyin bir daqiqa `502 Bad Gateway`                                | Normal holat — xizmatlar qayta ishga tushmoqda; uzoq davom etsa `status`                                    |
-| Boshqa xato                                                                    | Xato matni va `sh scripts/prod.sh status` natijasini to'liq nusxalab, dasturchiga (yoki Claude'ga) yuboring |
+| Xato yoki holat                                                                           | Yechim                                                                                                                                                                             |
+| ----------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `docker/.env.production yo'q. Avval: sh scripts/prod.sh init`                             | 5.1-qadam                                                                                                                                                                          |
+| `docker/.env.production allaqachon mavjud — ustiga yozilmaydi`                            | `init` bajarilgan — faylni `nano` bilan tahrirlang                                                                                                                                 |
+| `ESKIZ_EMAIL va ESKIZ_PASSWORD berilmagan`                                                | 5.2-qadam, Eskiz                                                                                                                                                                   |
+| `SMS_PROVIDER=... production'da ishlamaydi`                                               | `docker/.env.production` da `SMS_PROVIDER=eskiz` qiling (5.2)                                                                                                                      |
+| `POSTGRES_PASSWORD va REDIS_PASSWORD faqat harf va raqamlardan iborat bo'lsin`            | Parolni `openssl rand -hex 24` bilan yarating (bazadagi parolni almashtirish — 9-bo'lim)                                                                                           |
+| `santexgo-api:... topilmadi` (`rollback`)                                                 | `sh scripts/prod.sh versions` dagi versiyalardan birini bering                                                                                                                     |
+| `permission denied ... docker.sock`                                                       | `sudo usermod -aG docker $USER`, serverdan chiqib qayta kiring                                                                                                                     |
+| `toomanyrequests` (image yuklashda)                                                       | Docker Hub'ning anonim yuklash limiti: `PULL=0 sh scripts/prod.sh deploy` (bazaviy image'lar serverda bo'lsa), bir soat kuting yoki bepul Docker Hub akkaunti bilan `docker login` |
+| `https://... hali ochilmayapti (sertifikat olinmagan bo'lishi mumkin)` (`deploy` oxirida) | Xizmatlar ishlayapti, lekin HTTPS sertifikati hali yo'q — yuqoridagi "Sertifikat olinmadi" qadamlari                                                                               |
+| Admin panel: `Bu akkauntda admin panelga kirish huquqi yo‘q`                              | `sh scripts/prod.sh admin` — shu raqamga admin huquqi beriladi                                                                                                                     |
+| SMS kelmayapti                                                                            | `sh scripts/prod.sh compose logs --tail 300 api \| grep -iE 'eskiz\|sms'` — pastga qarang                                                                                          |
+| Rasmlar ko'rinmayapti (S3)                                                                | `MEDIA_PUBLIC_URL`, `MEDIA_ORIGIN` va bucket ochiqligini tekshiring, keyin `sh scripts/prod.sh start`                                                                              |
+| `deploy` dan keyin bir daqiqa `502 Bad Gateway`                                           | Normal holat — xizmatlar qayta ishga tushmoqda; uzoq davom etsa `status`                                                                                                           |
+| Boshqa xato                                                                               | Xato matni va `sh scripts/prod.sh status` natijasini to'liq nusxalab, dasturchiga (yoki Claude'ga) yuboring                                                                        |
 
 SMS loglarida: `Eskiz'ga kirib bo'lmadi` — `ESKIZ_EMAIL`/`ESKIZ_PASSWORD` xato (tuzatib, `sh scripts/prod.sh start`); `SMS yuborilmadi ... HTTP ...` — shablon tasdiqlanmagan, balans tugagan yoki `SMS_SENDER` noto'g'ri; `Kunlik SMS limiti (...) tugadi` — `SMS_DAILY_LIMIT` ga yetildi (ertasi kuni tiklanadi yoki limitni oshiring).
 
@@ -725,21 +750,21 @@ SMS loglarida: `Eskiz'ga kirib bo'lmadi` — `ESKIZ_EMAIL`/`ESKIZ_PASSWORD` xato
 
 Hammasi loyiha papkasida: `sh scripts/prod.sh <buyruq>`.
 
-| Buyruq                               | Vazifasi                                                                    |
-| ------------------------------------ | --------------------------------------------------------------------------- |
-| `init [domen] [admin-domen] [email]` | `docker/.env.production` ni yaratish (parollar va kalitlar avtomatik)       |
-| `deploy`                             | Build, migratsiyalar va ishga tushirish — birinchi o'rnatish va yangilash   |
-| `seed`                               | Ma'lumotnomalar: kategoriyalar, materiallar, ombor (qayta berish xavfsiz)   |
-| `admin`                              | Admin yaratish yoki mavjud foydalanuvchiga admin huquqi berish              |
-| `versions`                           | Rollback uchun saqlangan versiyalar                                         |
-| `rollback <versiya>`                 | Oldingi versiyaga qaytish (baza migratsiyalari qaytarilmaydi)               |
-| `status`                             | Xizmatlar holati                                                            |
-| `logs [xizmat]`                      | Loglarni kuzatish (chiqish — Ctrl + C)                                      |
-| `stop`                               | Hamma xizmatlarni to'xtatish — sayt yopiladi                                |
-| `start`                              | Ishga tushirish; `.env.production` dagi o'zgarishlarni qo'llash             |
-| `restart [xizmat]`                   | Qayta ishga tushirish (yangi sozlamalarni o'qimaydi)                        |
-| `backup`                             | Hozir zaxira nusxa yaratish                                                 |
-| `backups`                            | Baza zaxiralari ro'yxati                                                    |
-| `restore <fayl>`                     | Bazani zaxiradan tiklash (`HA` tasdig'i bilan; joriy baza saqlab qo'yiladi) |
-| `psql [argumentlar]`                 | Baza konsoli (chiqish — `\q`)                                               |
-| `compose <argumentlar>`              | Shu loyiha uchun istalgan `docker compose` buyrug'i                         |
+| Buyruq                               | Vazifasi                                                                                                                         |
+| ------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------- |
+| `init [domen] [admin-domen] [email]` | `docker/.env.production` ni yaratish (parollar va kalitlar avtomatik)                                                            |
+| `deploy`                             | Zaxira, build, migratsiyalar va ishga tushirish — birinchi o'rnatish va yangilash (`PULL=0` — bazaviy image'larni yangilamasdan) |
+| `seed`                               | Boshlang'ich ma'lumotnomalar: kategoriyalar, materiallar, ombor — faqat birinchi o'rnatishda (qayta berilsa, o'zgartirmaydi)     |
+| `admin`                              | Admin yaratish yoki mavjud foydalanuvchiga admin huquqi berish (`ADMIN_FIRST_NAME`, `ADMIN_LAST_NAME` — ixtiyoriy)               |
+| `versions`                           | Rollback uchun saqlangan versiyalar (eng yangisi birinchi, ishlab turgani `← hozirgi`)                                           |
+| `rollback <versiya>`                 | Oldingi versiyaga qaytish (baza migratsiyalari qaytarilmaydi)                                                                    |
+| `status`                             | Xizmatlar holati                                                                                                                 |
+| `logs [xizmat]`                      | Loglarni kuzatish (chiqish — Ctrl + C)                                                                                           |
+| `stop`                               | Hamma xizmatlarni to'xtatish — sayt yopiladi                                                                                     |
+| `start`                              | Ishga tushirish; `.env.production` dagi o'zgarishlarni qo'llash                                                                  |
+| `restart [xizmat]`                   | Qayta ishga tushirish (yangi sozlamalarni o'qimaydi)                                                                             |
+| `backup`                             | Hozir zaxira nusxa yaratish                                                                                                      |
+| `backups`                            | Baza zaxiralari ro'yxati                                                                                                         |
+| `restore <fayl>`                     | Bazani zaxiradan tiklash (`HA` tasdig'i bilan; joriy baza saqlab qo'yiladi)                                                      |
+| `psql [argumentlar]`                 | Baza konsoli (chiqish — `\q`)                                                                                                    |
+| `compose <argumentlar>`              | Shu loyiha uchun istalgan `docker compose` buyrug'i                                                                              |

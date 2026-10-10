@@ -73,7 +73,7 @@ sh scripts/prod.sh seed                                                # kategor
 sh scripts/prod.sh admin                                               # admin akkaunt
 ```
 
-Yangilash: `sh scripts/prod.sh backup && git pull && sh scripts/prod.sh deploy` (migratsiyalar avtomatik). Boshqa buyruqlar: `status`, `logs`, `backups`, `restore <fayl>`, `versions`, `rollback <versiya>` — `sh scripts/prod.sh` ro'yxatni ko'rsatadi.
+Yangilash: `git pull && sh scripts/prod.sh deploy` — `deploy` avval bazaning zaxira nusxasini oladi, migratsiyalar avtomatik qo'llanadi, versiya vaqt va commit bilan belgilanadi (masalan, `20261010-064215-5b48e2d`; rollback uchun oxirgi 5 tasi saqlanadi). Boshqa buyruqlar: `status`, `logs`, `backups`, `restore <fayl>`, `versions`, `rollback <versiya>` — `sh scripts/prod.sh` ro'yxatni ko'rsatadi.
 
 ## Kirish va SMS
 
@@ -82,7 +82,7 @@ Yangilash: `sh scripts/prod.sh backup && git pull && sh scripts/prod.sh deploy` 
 - **Lokal kompyuterda SMS yuborilmaydi** (`SMS_PROVIDER=console`): kod `pnpm dev` ishlayotgan terminalda `📱 +998...: SantexGo: ... kodi 123456` ko'rinishida chiqadi.
 - Haqiqiy SMS uchun Eskiz.uz: `apps/api/.env` da `SMS_PROVIDER=eskiz`, `ESKIZ_EMAIL`, `ESKIZ_PASSWORD`. SMS matnlari (`apps/api/src/modules/auth/sms-messages.ts`) Eskiz kabinetida shablon sifatida tasdiqlangan bo'lishi kerak.
 - Himoya: parollar Argon2id, sessiya tokenlari httpOnly cookie'da, SMS kod 5 daqiqa / 5 urinish / 60 soniyada bir marta, 10 ta noto'g'ri paroldan keyin raqam 15 daqiqaga bloklanadi, barcha API'ga rate limit, CSRF himoyasi, kunlik SMS limiti.
-- Sayt va admin panel: har so'rovda yangi nonce bilan qat'iy Content-Security-Policy (begona skript bajarilmaydi), HSTS; admin API faqat admin domeni orqali ishlaydi (sayt domenida yopiq). Serverda tashqariga faqat 80/443 ochiq — baza va Redis ichki tarmoqda.
+- Sayt va admin panel: har so'rovda yangi nonce bilan qat'iy Content-Security-Policy (begona skript bajarilmaydi; ilova CSP bermagan javoblarga Caddy eng qat'iy standart CSP qo'yadi), HSTS; kirishdan keyingi `?next=` manzili tekshiriladi (boshqa saytga yo'naltirib bo'lmaydi). Admin API faqat admin domeni orqali ishlaydi (sayt domenida yopiq); production'da API'ning CORS ro'yxati ataylab bo'sh va Caddy `/api` ga begona `Origin` bilan kelgan so'rovlarni `403` bilan rad etadi — sayt va admin panel bir-birining API'sini brauzerdan chaqira olmaydi. Serverda tashqariga faqat 80/443 (IPv4) ochiq — baza va Redis ichki tarmoqda.
 - Production'da SMS sozlamalari `docker/.env.production` da — [docs/DEPLOY.md](docs/DEPLOY.md).
 
 ## Ma'lumotlar bazasi
@@ -102,7 +102,9 @@ Muhim qoidalar:
 
 `pnpm db:seed` 2 ta brend, 4 ta material, 11 ta kategoriya, 38 ta namunaviy mahsulot (rasmsiz), 3 ta chegirma va homepage tugmalarini yaratadi. **Narxlar, qoldiqlar va tavsiflar — namuna**, real savdodan oldin almashtiring.
 
-Birinchi admin `apps/api/.env` dagi `ADMIN_PHONE` va `ADMIN_PASSWORD` dan yaratiladi (parol kamida 10 belgi). Seed'ni qayta ishga tushirish xavfsiz: dublikat yaratilmaydi, ombor qoldiqlari va admin paroli o'zgartirilmaydi.
+Birinchi admin `apps/api/.env` dagi `ADMIN_PHONE` va `ADMIN_PASSWORD` dan yaratiladi (parol kamida 10 belgi). Seed'ni qayta ishga tushirish xavfsiz: dublikat yaratilmaydi, ombor qoldiqlari, sozlamalar va admin paroli o'zgartirilmaydi.
+
+Production'da (`SEED_SAMPLE_PRODUCTS=false`) seed faqat ma'lumotnomalarni yozadi — ombor, materiallar, xususiyatlar, kategoriyalar, "Material bo'yicha" tugmalari va sozlamalar; brend, variant guruhi, mahsulot va chegirmalar yozilmaydi. Ma'lumotnomalar faqat birinchi o'rnatishda (bazada kategoriya bo'lmaganda) yoziladi; qayta berilsa, faqat yo'q sozlamalar qo'shiladi — [docs/DEPLOY.md](docs/DEPLOY.md#54-malumotnomalar-seed).
 
 ## Katalog va qidiruv
 
