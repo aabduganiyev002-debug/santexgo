@@ -73,7 +73,7 @@ sh scripts/prod.sh seed                                                # kategor
 sh scripts/prod.sh admin                                               # admin akkaunt
 ```
 
-Yangilash: `git pull && sh scripts/prod.sh deploy` — `deploy` avval bazaning zaxira nusxasini oladi, migratsiyalar avtomatik qo'llanadi, versiya vaqt va commit bilan belgilanadi (masalan, `20261010-064215-5b48e2d`; rollback uchun oxirgi 5 tasi saqlanadi). Boshqa buyruqlar: `status`, `logs`, `backups`, `restore <fayl>`, `versions`, `rollback <versiya>` — `sh scripts/prod.sh` ro'yxatni ko'rsatadi.
+Yangilash: `git pull && sh scripts/prod.sh deploy` — `deploy` build'dan keyin, migratsiyalardan oldin bazaning zaxira nusxasini oladi, migratsiyalar avtomatik qo'llanadi, versiya vaqt va commit bilan belgilanadi (masalan, `20261010-064215-5b48e2d`; rollback uchun oxirgi 5 tasi saqlanadi). Boshqa buyruqlar: `status`, `logs`, `backups`, `restore <fayl>`, `versions`, `rollback <versiya>` — `sh scripts/prod.sh` ro'yxatni ko'rsatadi.
 
 ## Kirish va SMS
 
@@ -104,7 +104,7 @@ Muhim qoidalar:
 
 Birinchi admin `apps/api/.env` dagi `ADMIN_PHONE` va `ADMIN_PASSWORD` dan yaratiladi (parol kamida 10 belgi). Seed'ni qayta ishga tushirish xavfsiz: dublikat yaratilmaydi, ombor qoldiqlari, sozlamalar va admin paroli o'zgartirilmaydi.
 
-Production'da (`SEED_SAMPLE_PRODUCTS=false`) seed faqat ma'lumotnomalarni yozadi — ombor, materiallar, xususiyatlar, kategoriyalar, "Material bo'yicha" tugmalari va sozlamalar; brend, variant guruhi, mahsulot va chegirmalar yozilmaydi. Ma'lumotnomalar faqat birinchi o'rnatishda (bazada kategoriya bo'lmaganda) yoziladi; qayta berilsa, faqat yo'q sozlamalar qo'shiladi — [docs/DEPLOY.md](docs/DEPLOY.md#54-malumotnomalar-seed).
+Production'da (`SEED_SAMPLE_PRODUCTS=false`) seed faqat ma'lumotnomalarni yozadi — ombor, materiallar, xususiyatlar, kategoriyalar, "Material bo'yicha" tugmalari va sozlamalar; brend, variant guruhi, mahsulot va chegirmalar yozilmaydi. Ma'lumotnomalar bir marta yoziladi: to'liq yakunlangan birinchi ishga tushirish `settings` jadvalida `seed.referenceData` belgisini qoldiradi; shundan keyin qayta berilsa, faqat yo'q sozlamalar qo'shiladi (asosiy ombor har doim tekshiriladi) — [docs/DEPLOY.md](docs/DEPLOY.md#54-malumotnomalar-seed).
 
 ## Katalog va qidiruv
 

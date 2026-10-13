@@ -389,7 +389,7 @@ sh scripts/prod.sh seed
 
 Boshlang'ich ma'lumotnomalar yoziladi: asosiy ombor, materiallar (PPR, PVC, PP, Latun), filtr xususiyatlari (diametr, PN...), 11 ta kategoriya va ularning filtrlari, bosh sahifadagi "Material bo'yicha" tugmalari va do'kon sozlamalari (yetkazib berish 30 000 so'm, 1 000 000 so'mdan bepul). **Brendlar yaratilmaydi** — ularni admin panelda o'zingiz qo'shasiz (5.6). Ikkita namunaviy brend (Plastherm, Vero), variant guruhlari, namunaviy mahsulot va chegirmalar faqat `SEED_SAMPLE_PRODUCTS=true` bo'lsa yoziladi (sinov serveri uchun). Katalog saytda 1 daqiqa ichida yangilanadi (API keshi).
 
-`SEED_SAMPLE_PRODUCTS=false` bo'lganda ma'lumotnomalar faqat birinchi o'rnatishda — bazada hali birorta kategoriya bo'lmaganda yoziladi; keyin ularni admin panel orqali boshqarasiz. `seed` qayta berilsa, ma'lumotnomalarda hech narsa o'zgarmaydi (admin tahrirlagan yoki o'chirgan yozuvlar qayta paydo bo'lmaydi, natijada `Ma'lumotnomalar allaqachon bor — o'zgartirilmadi`), faqat bazada yo'q sozlamalar qo'shiladi — mavjud sozlamalarga tegilmaydi.
+`SEED_SAMPLE_PRODUCTS=false` bo'lganda ma'lumotnomalar bir marta yoziladi: to'liq yakunlangan birinchi ishga tushirish `settings` jadvalida `seed.referenceData` belgisini qoldiradi (birinchi urinish yarim yo'lda to'xtasa, keyingi `seed` qolganini yozib tugatadi); keyin ularni admin panel orqali boshqarasiz. Belgi bor bo'lsa, `seed` qayta berilganda ma'lumotnomalarda hech narsa o'zgarmaydi (admin tahrirlagan yoki o'chirgan yozuvlar qayta paydo bo'lmaydi, natijada `Ma'lumotnomalar allaqachon bor — o'zgartirilmadi`), faqat bazada yo'q sozlamalar qo'shiladi — mavjud sozlamalarga tegilmaydi.
 
 ### 5.5. Admin akkaunt
 
@@ -399,7 +399,7 @@ sh scripts/prod.sh admin
 
 Skript admin telefon raqamini (`+998901234567` ko'rinishida) va parolni (kamida 10 belgi, ekranda ko'rinmaydi) so'raydi. Natija: `✔ Admin yaratildi: +998...`.
 
-- Raqam saytda allaqachon ro'yxatdan o'tgan bo'lsa, o'sha akkauntga admin huquqi beriladi, paroli esa o'zgarmaydi (`Admin mavjud: ... (parol o'zgartirilmadi)`).
+- Raqam saytda allaqachon ro'yxatdan o'tgan bo'lsa, parolni bo'sh qoldiring (Enter): o'sha akkauntga admin huquqi beriladi, paroli o'zgarmaydi (`Admin mavjud: ... (parol o'zgartirilmadi)`). So'rovsiz: `ADMIN_PHONE=+998901234567 ADMIN_PASSWORD= sh scripts/prod.sh admin`. Raqam topilmasa va parol berilmasa — `... raqamli foydalanuvchi yo'q — yangi admin uchun ADMIN_PASSWORD ... kerak`.
 - Bir nechta admin kerak bo'lsa — buyruqni har biri uchun takrorlang.
 - Ism-familiya ixtiyoriy (faqat yangi akkaunt uchun); berilmasa, admin "Admin SantexGo" nomi bilan yaratiladi — ismni keyin saytdagi kabinetda o'zgartirish mumkin:
 
@@ -504,7 +504,8 @@ Versiya nomi — `deploy` boshlangan vaqt (UTC, `YYYYMMDD-HHMMSS`) va git commit
 - Sozlamani o'zgartirgandan keyin: `sh scripts/prod.sh start`.
 - Backup xizmati ishga tushganda oxirgi 24 soatda zaxira bo'lmasa, darhol bittasini yaratadi. 26 soat davomida yangi zaxira bo'lmasa, `status` da `backup` — `unhealthy`.
 - **Eski zaxiralarni tozalash.** `BACKUP_KEEP_DAYS` dan eski baza zaxiralari o'chiriladi, lekin eng yangi 3 tasi muddatidan qat'i nazar har doim qoladi — zaxira bir necha hafta ishlamay qolsa ham, oxirgi yaxshi nusxalar o'chib ketmaydi. Tozalash yangi zaxiradan **oldin** bajariladi: disk to'lib qolgan bo'lsa ham avval joy bo'shaydi.
-- Zaxira avval vaqtinchalik faylga yoziladi va tekshirilgandan keyingina `.dump` nomini oladi; xato bo'lsa, yarim yozilgan fayl o'chiriladi — ro'yxatda faqat to'liq zaxiralar bo'ladi.
+- Zaxira avval vaqtinchalik faylga yoziladi va tekshirilgandan keyingina `.dump` nomini oladi; xato bo'lsa yoki jarayon to'xtatilsa, yarim yozilgan fayl o'chiriladi (konteyner majburan o'chirilganda qolgani 12 soatdan keyin tozalanadi). `backups` faqat tayyor `.dump` fayllarni ko'rsatadi.
+- Bir vaqtda faqat bitta zaxira yoziladi (kunlik, qo'lda va `deploy` oldidagi zaxiralar ustma-ust tushsa — navbat bilan).
 - Zaxiralarda mijozlarning shaxsiy ma'lumotlari bor, shuning uchun baza fayllari `root` ga tegishli va faqat u o'qiy oladi — ko'chirish uchun `sudo` kerak.
 - Redis zaxiralanmaydi — unda faqat kesh va vaqtinchalik hisoblagichlar.
 
@@ -706,13 +707,13 @@ Server o'zi ishdan chiqsa, bu haqda xabar bera olmaydi. Tashqi uptime monitoring
 
 **Xizmat `unhealthy` yoki `deploy` "unhealthy" deb to'xtadi:** `sh scripts/prod.sh status`, keyin muammoli xizmat logi (`sh scripts/prod.sh logs <xizmat>`):
 
-| Xizmat         | Ko'p uchraydigan sabab                                                                                                    |
-| -------------- | ------------------------------------------------------------------------------------------------------------------------- |
-| `api`          | `Muhit o'zgaruvchilari noto'g'ri` — `.env.production` dagi xato (log qaysi o'zgaruvchi ekanini aytadi); baza ishlamayapti |
-| `migrate`      | Migratsiya xatosi — API ham ishga tushmaydi. Logni saqlab, dasturchiga yuboring; kerak bo'lsa `rollback`                  |
-| `web`, `admin` | Avval `api` sog'lom bo'lishi kerak — `api` ni tuzating                                                                    |
-| `backup`       | 26 soat zaxira yo'q: disk to'lgan yoki baza xatosi; qo'lda `sh scripts/prod.sh backup` xatoni ko'rsatadi                  |
-| `postgres`     | Ko'pincha disk to'lgan                                                                                                    |
+| Xizmat         | Ko'p uchraydigan sabab                                                                                                                                                                                                                                                                             |
+| -------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `api`          | `Muhit o'zgaruvchilari noto'g'ri` — `.env.production` dagi xato (log qaysi o'zgaruvchi ekanini aytadi); baza ishlamayapti                                                                                                                                                                          |
+| `migrate`      | Migratsiya xatosi — API ham ishga tushmaydi. Logni saqlab, dasturchiga yuboring; kerak bo'lsa `rollback`                                                                                                                                                                                           |
+| `web`, `admin` | Avval `api` sog'lom bo'lishi kerak — `api` ni tuzating                                                                                                                                                                                                                                             |
+| `backup`       | 26 soat zaxira yo'q: disk to'lgan yoki baza xatosi; qo'lda `sh scripts/prod.sh backup` xatoni ko'rsatadi. Tuzatilgach `backup` ni qayta bering — holat 10 daqiqagacha `healthy` bo'ladi (darhol: `sh scripts/prod.sh restart backup`). Sayt ishlashiga va `deploy` ga bu holat to'sqinlik qilmaydi |
+| `postgres`     | Ko'pincha disk to'lgan                                                                                                                                                                                                                                                                             |
 
 Tuzatgandan keyin: `sh scripts/prod.sh deploy` (yoki faqat sozlama o'zgargan bo'lsa — `start`).
 
@@ -757,21 +758,21 @@ SMS loglarida: `Eskiz'ga kirib bo'lmadi` — `ESKIZ_EMAIL`/`ESKIZ_PASSWORD` xato
 
 Hammasi loyiha papkasida: `sh scripts/prod.sh <buyruq>`.
 
-| Buyruq                               | Vazifasi                                                                                                                         |
-| ------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------- |
-| `init [domen] [admin-domen] [email]` | `docker/.env.production` ni yaratish (parollar va kalitlar avtomatik)                                                            |
-| `deploy`                             | Zaxira, build, migratsiyalar va ishga tushirish — birinchi o'rnatish va yangilash (`PULL=0` — bazaviy image'larni yangilamasdan) |
-| `seed`                               | Boshlang'ich ma'lumotnomalar: kategoriyalar, materiallar, ombor — faqat birinchi o'rnatishda (qayta berilsa, o'zgartirmaydi)     |
-| `admin`                              | Admin yaratish yoki mavjud foydalanuvchiga admin huquqi berish (`ADMIN_FIRST_NAME`, `ADMIN_LAST_NAME` — ixtiyoriy)               |
-| `versions`                           | Rollback uchun saqlangan versiyalar (eng yangisi birinchi, ishlab turgani `← hozirgi`)                                           |
-| `rollback <versiya>`                 | Oldingi versiyaga qaytish (baza migratsiyalari qaytarilmaydi)                                                                    |
-| `status`                             | Xizmatlar holati                                                                                                                 |
-| `logs [xizmat]`                      | Loglarni kuzatish (chiqish — Ctrl + C)                                                                                           |
-| `stop`                               | Hamma xizmatlarni to'xtatish — sayt yopiladi                                                                                     |
-| `start`                              | Ishga tushirish; `.env.production` dagi o'zgarishlarni qo'llash                                                                  |
-| `restart [xizmat]`                   | Qayta ishga tushirish (yangi sozlamalarni o'qimaydi)                                                                             |
-| `backup`                             | Hozir zaxira nusxa yaratish                                                                                                      |
-| `backups`                            | Baza zaxiralari ro'yxati                                                                                                         |
-| `restore <fayl>`                     | Bazani zaxiradan tiklash (`HA` tasdig'i bilan; joriy baza saqlab qo'yiladi)                                                      |
-| `psql [argumentlar]`                 | Baza konsoli (chiqish — `\q`)                                                                                                    |
-| `compose <argumentlar>`              | Shu loyiha uchun istalgan `docker compose` buyrug'i                                                                              |
+| Buyruq                               | Vazifasi                                                                                                                                                                                  |
+| ------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `init [domen] [admin-domen] [email]` | `docker/.env.production` ni yaratish (parollar va kalitlar avtomatik)                                                                                                                     |
+| `deploy`                             | Build, (baza bo'lsa) zaxira, migratsiyalar va ishga tushirish — birinchi o'rnatish va yangilash (`PULL=0` — bazaviy image'larni yangilamasdan; `BACKUP=0` — zaxirasiz, tavsiya etilmaydi) |
+| `seed`                               | Boshlang'ich ma'lumotnomalar: kategoriyalar, materiallar, ombor — faqat birinchi o'rnatishda (qayta berilsa, o'zgartirmaydi)                                                              |
+| `admin`                              | Admin yaratish yoki mavjud foydalanuvchiga admin huquqi berish (parolsiz; `ADMIN_FIRST_NAME`, `ADMIN_LAST_NAME` — ixtiyoriy)                                                              |
+| `versions`                           | Rollback uchun saqlangan versiyalar (eng yangisi birinchi, ishlab turgani `← hozirgi`)                                                                                                    |
+| `rollback <versiya>`                 | Oldingi versiyaga qaytish (baza migratsiyalari qaytarilmaydi)                                                                                                                             |
+| `status`                             | Xizmatlar holati                                                                                                                                                                          |
+| `logs [xizmat]`                      | Loglarni kuzatish (chiqish — Ctrl + C)                                                                                                                                                    |
+| `stop`                               | Hamma xizmatlarni to'xtatish — sayt yopiladi                                                                                                                                              |
+| `start`                              | Ishga tushirish; `.env.production` dagi o'zgarishlarni qo'llash                                                                                                                           |
+| `restart [xizmat]`                   | Qayta ishga tushirish (yangi sozlamalarni o'qimaydi)                                                                                                                                      |
+| `backup`                             | Hozir zaxira nusxa yaratish                                                                                                                                                               |
+| `backups`                            | Baza zaxiralari ro'yxati                                                                                                                                                                  |
+| `restore <fayl>`                     | Bazani zaxiradan tiklash (`HA` tasdig'i bilan; joriy baza saqlab qo'yiladi)                                                                                                               |
+| `psql [argumentlar]`                 | Baza konsoli (chiqish — `\q`)                                                                                                                                                             |
+| `compose <argumentlar>`              | Shu loyiha uchun istalgan `docker compose` buyrug'i                                                                                                                                       |

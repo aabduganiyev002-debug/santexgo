@@ -420,16 +420,21 @@ async function seedSettings(prisma: PrismaClient): Promise<void> {
 
 interface AdminInput {
   phone: string;
-  password: string;
+  /** Faqat yangi akkaunt uchun kerak — mavjud foydalanuvchiga admin roli parolsiz beriladi */
+  password: string | null;
   firstName: string;
   lastName: string;
 }
 
-/** Admin sozlamalarini bazaga hech narsa yozilmasdan oldin tekshiradi. */
-function readAdminInput(): AdminInput | null {
+/**
+ * Admin sozlamalarini bazaga hech narsa yozilmasdan oldin tekshiradi. To'liq seed'da admin faqat
+ * ADMIN_PASSWORD berilganda yaratiladi; SEED_SCOPE=admin da telefon raqam yetarli (mavjud
+ * foydalanuvchini admin qilish uchun).
+ */
+function readAdminInput(adminOnly: boolean): AdminInput | null {
   const password = process.env.ADMIN_PASSWORD ?? '';
-  if (!password) return null;
-  if (password.length < ADMIN_PASSWORD_MIN_LENGTH) {
+  if (!password && !adminOnly) return null;
+  if (password && password.length < ADMIN_PASSWORD_MIN_LENGTH) {
     throw new Error(
       `ADMIN_PASSWORD kamida ${ADMIN_PASSWORD_MIN_LENGTH} belgidan iborat bo'lishi kerak ` +
         `(parolda # bo'lsa, .env faylida qiymatni qo'shtirnoqqa oling)`,
@@ -441,7 +446,7 @@ function readAdminInput(): AdminInput | null {
   }
   return {
     phone,
-    password,
+    password: password || null,
     firstName: process.env.ADMIN_FIRST_NAME || 'Admin',
     lastName: process.env.ADMIN_LAST_NAME || 'SantexGo',
   };
@@ -462,6 +467,12 @@ async function seedAdmin(prisma: PrismaClient, input: AdminInput | null): Promis
     });
     return `Admin mavjud: ${phone} (parol o'zgartirilmadi)`;
   }
+  if (!input.password) {
+    throw new Error(
+      `${phone} raqamli foydalanuvchi yo'q — yangi admin uchun ADMIN_PASSWORD ` +
+        `(kamida ${ADMIN_PASSWORD_MIN_LENGTH} belgi) kerak`,
+    );
+  }
 
   await prisma.user.create({
     data: {
@@ -478,7 +489,8 @@ async function seedAdmin(prisma: PrismaClient, input: AdminInput | null): Promis
 
 async function main(): Promise<void> {
   validateCatalog();
-  const adminInput = readAdminInput();
+  const adminOnly = process.env.SEED_SCOPE === 'admin';
+  const adminInput = readAdminInput(adminOnly);
 
   const prisma = new PrismaClient({
     adapter: new PrismaPg({ connectionString: requireEnv('DATABASE_URL') }),
@@ -489,9 +501,8 @@ async function main(): Promise<void> {
   const withSamples = process.env.SEED_SAMPLE_PRODUCTS !== 'false';
 
   try {
-    if (process.env.SEED_SCOPE === 'admin') {
-      if (!adminInput)
-        throw new Error('SEED_SCOPE=admin uchun ADMIN_PHONE va ADMIN_PASSWORD kerak');
+    if (adminOnly) {
+      if (!adminInput) throw new Error('SEED_SCOPE=admin uchun ADMIN_PHONE kerak');
       console.info(`✔ ${await seedAdmin(prisma, adminInput)}`);
       return;
     }

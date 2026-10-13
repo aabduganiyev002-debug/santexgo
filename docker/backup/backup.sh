@@ -9,10 +9,16 @@ KEEP_DAYS=${BACKUP_KEEP_DAYS:-14}
 # Muddatidan qat'i nazar har doim saqlanadigan eng yangi zaxiralar soni (zaxira bir necha hafta
 # muvaffaqiyatsiz bo'lsa ham, oxirgi yaxshi nusxalar o'chib ketmasin)
 KEEP_MIN=3
-STAMP=$(date -u +%Y%m%d-%H%M%S)
-FILE="/backups/db/santexgo-$STAMP.dump"
 umask 077
 mkdir -p /backups/db /backups/uploads
+
+# Bir vaqtda faqat bitta zaxira (cron, konteyner ishga tushgandagi va deploy oldidagi zaxira
+# ustma-ust tushsa — navbat bilan, har biri o'z fayliga)
+exec 9> /backups/db/.lock
+flock 9
+
+STAMP=$(date -u +%Y%m%d-%H%M%S)
+FILE="/backups/db/santexgo-$STAMP.dump"
 
 # Eski zaxiralar va yarim qolgan fayllar avval tozalanadi: disk to'lib qolgan bo'lsa ham joy bo'shaydi
 find /backups/db -name 'santexgo-*.dump' -mtime +"$KEEP_DAYS" | sort | while read -r old; do
@@ -22,8 +28,9 @@ find /backups/db -name 'santexgo-*.dump' -mtime +"$KEEP_DAYS" | sort | while rea
 done
 find /backups/db -name '*.partial' -mmin +720 -delete
 
-# Shu urinishning yarim qolgan fayli xatoda o'chiriladi
+# Shu urinishning yarim qolgan fayli xatoda yoki to'xtatilganda o'chiriladi
 trap 'rm -f "$FILE.partial"' EXIT
+trap 'exit 1' INT TERM HUP
 
 # Avval vaqtinchalik nomga yoziladi: yarim qolgan fayl hech qachon tayyor zaxira bo'lib ko'rinmaydi
 pg_dump --format=custom --compress=6 --no-owner --no-privileges --file "$FILE.partial"

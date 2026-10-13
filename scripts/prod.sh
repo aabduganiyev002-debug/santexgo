@@ -183,19 +183,17 @@ cmd_deploy() {
   # shellcheck disable=SC2086 # pull_flag bo'sh bo'lishi mumkin
   if ! IMAGE_TAG=$version compose build $pull_flag; then
     # Muvaffaqiyatli build qilingan image'larning teglari ham olib tashlanadi (yarim versiya qolmasin)
-    for name in $IMAGES; do
-      docker rmi "santexgo-$name:$version" > /dev/null 2>&1 || true
-    done
+    drop_version_tags "$version"
     die "Build muvaffaqiyatsiz (xato yuqorida) — ishlab turgan versiya o'zgarmadi"
   fi
-  backup_before_migrations
+  backup_before_migrations "$version"
   # "latest" faqat hamma image muvaffaqiyatli build qilingandan keyin yangi versiyaga o'tadi —
   # build yarim yo'lda to'xtasa, ishlab turgan versiya o'zgarmaydi
   for name in $IMAGES; do
     docker tag "santexgo-$name:$version" "santexgo-$name:latest"
   done
   info "Ishga tushirilmoqda (yangi migratsiyalar avtomatik qo'llanadi)..."
-  compose up -d --no-build --remove-orphans --wait --wait-timeout 300
+  start_stack
   prune_versions
   check_https
   info "Tayyor (versiya $version):"
@@ -203,19 +201,41 @@ cmd_deploy() {
   info "  Admin panel: https://$(env_value ADMIN_DOMAIN)"
 }
 
+# Versiya tegini barcha image'lardan olib tashlash (yarim yoki hech qachon ishga tushmagan versiya
+# "versions" ro'yxatida qolmasin)
+drop_version_tags() {
+  for name in $IMAGES; do
+    docker rmi "santexgo-$name:$1" > /dev/null 2>&1 || true
+  done
+}
+
+# Xizmatlarni ishga tushirish. Sayt zanjiri (caddy → web, admin → api → migrate, postgres, redis)
+# sog'lom bo'lishi kutiladi; backup kutilmaydi — u "unhealthy" bo'lsa ham (masalan, disk to'lib,
+# zaxira olinmay qolgan) sayt ishga tushishi kerak, holatini "status" ko'rsatadi
+start_stack() {
+  compose up -d --no-build --remove-orphans --wait --wait-timeout 300 caddy
+  compose up -d --no-build backup
+}
+
 # Yangi migratsiyalar qo'llanishidan oldin zaxira nusxa (build'dan keyin — tiklash nuqtasi eng yangi
-# bo'lsin). Baza hali yo'q bo'lsa (birinchi o'rnatish) — kerak emas. Zaxira olinmasa — deploy to'xtaydi.
-# BACKUP=0 — ataylab o'tkazib yuborish
+# bo'lsin). Baza hali yo'q bo'lsa (birinchi o'rnatish) — kerak emas. Zaxira olinmasa — deploy to'xtaydi
+# va yangi versiya teglari o'chiriladi. BACKUP=0 — ataylab o'tkazib yuborish
 backup_before_migrations() {
+  version=$1
   if [ "${BACKUP:-1}" = 0 ]; then
     info "BACKUP=0 — deploy oldidan zaxira olinmaydi"
     return 0
   fi
   docker volume inspect "${PROJECT}_postgres_data" > /dev/null 2>&1 || return 0
   info "Migratsiyalardan oldin zaxira nusxa olinmoqda..."
-  compose up -d --no-build --wait --wait-timeout 300 postgres backup
-  compose exec -T backup backup.sh ||
+  # Yangi build qilingan image'lar bilan ("latest" hali yo'q bo'lishi mumkin); ishlab turgan
+  # konteynerlar qayta yaratilmaydi (baza qayta ishga tushmaydi)
+  if ! { IMAGE_TAG=$version compose up -d --no-build --no-recreate --wait --wait-timeout 300 postgres &&
+    IMAGE_TAG=$version compose up -d --no-build --no-recreate backup &&
+    compose exec -T backup backup.sh; }; then
+    drop_version_tags "$version"
     die "Zaxira olinmadi — deploy to'xtatildi (ishlab turgan versiya o'zgarmadi). Majburan: BACKUP=0"
+  fi
 }
 
 # HTTPS sertifikati olinganini tekshirish (konteynerlar sog'lom bo'lsa ham sertifikat DNS yoki
@@ -255,8 +275,9 @@ cmd_admin() {
     printf 'Admin telefon raqami (+998XXXXXXXXX): '
     read -r phone
   fi
-  if [ -z "$password" ]; then
-    printf 'Parol (kamida 10 belgi; mavjud foydalanuvchi uchun e%stiborga olinmaydi): ' "'"
+  # ADMIN_PASSWORD= (bo'sh, lekin berilgan) — so'ramasdan, mavjud foydalanuvchini admin qilish
+  if [ -z "$password" ] && [ -z "${ADMIN_PASSWORD+set}" ]; then
+    printf 'Parol — yangi akkaunt uchun, kamida 10 belgi (mavjud foydalanuvchini admin qilish uchun bo%ssh qoldiring): ' "'"
     stty -echo 2> /dev/null || true
     IFS= read -r password
     stty echo 2> /dev/null || true
@@ -294,7 +315,7 @@ cmd_rollback() {
   for name in $IMAGES; do
     docker tag "santexgo-$name:$version" "santexgo-$name:latest"
   done
-  compose up -d --no-build --remove-orphans --wait --wait-timeout 300
+  start_stack
   info "Versiya $version ishga tushirildi"
 }
 
@@ -314,7 +335,7 @@ cmd_restore() {
   status=0
   compose exec -T backup restore.sh "$file" || status=$?
   info "Qayta ishga tushirilmoqda..."
-  compose up -d --no-build --wait --wait-timeout 300
+  start_stack
   [ "$status" -eq 0 ] || die "Tiklash muvaffaqiyatsiz — joriy baza o'zgarmadi"
 }
 
@@ -336,10 +357,10 @@ case "$command" in
   status) compose ps ;;
   logs) compose logs -f --tail 200 "$@" ;;
   stop) compose stop ;;
-  start) compose up -d --no-build --wait --wait-timeout 300 ;;
+  start) start_stack ;;
   restart) compose restart "$@" ;;
   backup) compose exec -T backup backup.sh ;;
-  backups) compose exec -T backup ls -lh /backups/db ;;
+  backups) compose exec -T backup sh -c 'ls -lh /backups/db/santexgo-*.dump' ;;
   restore) cmd_restore "$@" ;;
   psql) cmd_psql "$@" ;;
   compose) compose "$@" ;;
