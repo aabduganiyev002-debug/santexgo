@@ -8,23 +8,25 @@ Platforma qanday tuzilgani (arxitektura, baza, mijoz/admin/buyurtma/chegirma jar
 
 ## Tarkib
 
-| Papka                            | Nima                                                                                                 |
-| -------------------------------- | ---------------------------------------------------------------------------------------------------- |
-| `apps/api`                       | Backend API — NestJS 12, Prisma 7, PostgreSQL                                                        |
-| `apps/web`                       | Mijozlar sayti — Next.js 16, React 19, Tailwind CSS 4                                                |
-| `apps/admin`                     | Admin panel — Next.js, http://localhost:3001                                                         |
-| `apps/*/Dockerfile`              | Production image'lar: API (va migratsiyalar uchun `migrate`), sayt, admin panel                      |
-| `packages/shared`                | Frontend va backend uchun umumiy kod: narx/chegirma hisobi, statuslar, telefon formati               |
-| `packages/ui`                    | Sayt va admin panel uchun umumiy UI komponentlar, API klient, dizayn tokenlari, CSP (`src/csp.ts`)   |
-| `docker/docker-compose.yml`      | Lokal infratuzilma: PostgreSQL, Redis (ixtiyoriy: SeaweedFS — S3 sinovi uchun)                       |
-| `docker/docker-compose.prod.yml` | Production: sayt, admin panel, API, baza, Redis, Caddy va backup — bitta serverda                    |
-| `docker/Caddyfile`               | HTTPS (Let's Encrypt), domenlar, xavfsizlik sarlavhalari, admin API izolyatsiyasi                    |
-| `docker/backup`                  | Kunlik zaxira (baza va yuklangan fayllar) va tiklash skriptlari                                      |
-| `scripts`                        | `setup.mjs` — kompyuterda o'rnatish (`pnpm setup:local`); `prod.sh` — production serverni boshqarish |
+| Papka                            | Nima                                                                                                                                                       |
+| -------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `apps/api`                       | Backend API — NestJS 12, Prisma 7, PostgreSQL                                                                                                              |
+| `apps/web`                       | Mijozlar sayti — Next.js 16, React 19, Tailwind CSS 4                                                                                                      |
+| `apps/admin`                     | Admin panel — Next.js, http://localhost:3001                                                                                                               |
+| `apps/*/Dockerfile`              | Production image'lar: API (va migratsiyalar uchun `migrate`), sayt, admin panel                                                                            |
+| `packages/shared`                | Frontend va backend uchun umumiy kod: narx/chegirma hisobi, statuslar, telefon formati                                                                     |
+| `packages/ui`                    | Sayt va admin panel uchun umumiy UI komponentlar, API klient, dizayn tokenlari, CSP (`src/csp.ts`)                                                         |
+| `docker/docker-compose.yml`      | Lokal infratuzilma: PostgreSQL, Redis (ixtiyoriy: SeaweedFS — S3 sinovi uchun)                                                                             |
+| `docker/docker-compose.prod.yml` | Production: sayt, admin panel, API, baza, Redis, Caddy va backup — bitta serverda                                                                          |
+| `docker/Caddyfile`               | HTTPS (Let's Encrypt), domenlar, xavfsizlik sarlavhalari, admin API izolyatsiyasi                                                                          |
+| `docker/backup`                  | Kunlik zaxira (baza va yuklangan fayllar) va tiklash skriptlari                                                                                            |
+| `scripts`                        | `setup.mjs` — kompyuterda o'rnatish (`pnpm setup:local`); `install.sh` — serverga bitta buyruq bilan o'rnatish; `prod.sh` — production serverni boshqarish |
 
 ## Ishga tushirish
 
 Kompyuterda birinchi marta ishga tushirish bo'yicha qadamma-qadam qo'llanma (Windows va Mac): **[docs/ORNATISH.md](docs/ORNATISH.md)**.
+
+Windows'da eng oson yo'l: loyiha papkasidagi **`SantexGo-ishga-tushirish.bat`** ni ikki marta bosing — Node.js va Docker'ni tekshiradi, pnpm'ni o'rnatadi, `pnpm setup:local` ni bajaradi, serverni ishga tushirib, sayt va admin panelni brauzerda ochadi. To'xtatish: **`SantexGo-toxtatish.bat`**.
 
 Qisqacha (Node.js 22.12+, pnpm 10 va Docker Desktop o'rnatilgan bo'lsa):
 
@@ -63,7 +65,15 @@ Tekshirish:
 
 Serverga (Ubuntu 24.04 VPS) o'rnatish, yangilash, zaxira nusxalar va muammolarni hal qilish bo'yicha qadamma-qadam qo'llanma: **[docs/DEPLOY.md](docs/DEPLOY.md)**.
 
-Bitta serverda Docker Compose bilan: Caddy (avtomatik HTTPS), sayt, admin panel, API, PostgreSQL, Redis va kunlik backup. Server tayyor va DNS sozlangan bo'lsa, loyiha papkasida:
+Bitta serverda Docker Compose bilan: Caddy (avtomatik HTTPS), sayt, admin panel, API, PostgreSQL, Redis va kunlik backup.
+
+**Bitta buyruq bilan** (toza Ubuntu 22.04/24.04 yoki Debian 12 server, DNS sozlangan bo'lsa) — domen, email, Eskiz va admin so'raladi, qolgani avtomatik: tizim yangilanishlari, swap, firewall, Docker, kod, sozlamalar, build, HTTPS, seed va admin akkaunt. Qayta berilsa — yangilaydi:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/aabduganiyev002-debug/santexgo/main/scripts/install.sh -o install.sh && sudo sh install.sh
+```
+
+Qo'lda (server tayyor va DNS sozlangan bo'lsa), loyiha papkasida:
 
 ```bash
 sh scripts/prod.sh init santexgo.uz admin.santexgo.uz siz@example.com  # sozlamalar, parollar avtomatik

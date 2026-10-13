@@ -4,6 +4,20 @@ Birinchi o'rnatish taxminan 30–40 daqiqa oladi (ko'p qismi dasturlarni yuklab 
 
 Kompyuterga talablar: Windows 10/11 (64-bit) yoki macOS, kamida 8 GB operativ xotira, 10 GB bo'sh joy, internet.
 
+## Eng oson yo'l: ikki marta bosish (Windows)
+
+1. 1-qadamdagi dasturlarni o'rnating va 2-qadamdagidek kodni yuklab oling.
+2. Loyiha papkasida (masalan `Documents\santexgo`) **`SantexGo-ishga-tushirish.bat`** faylini ikki marta bosing.
+
+Terminal kerak emas — fayl 3–6-qadamlarni o'zi bajaradi: Node.js'ni tekshiradi, pnpm'ni o'rnatadi, Docker Desktop'ni ochadi, `pnpm setup:local` ni bajaradi, saytni alohida server oynasida ishga tushiradi va brauzerda sayt (http://localhost:3000) hamda admin panelni (http://localhost:3001) ochadi.
+
+- Birinchi marta 10–15 daqiqa ketadi. Oxirida admin telefon raqami va paroli chiqadi — yozib oling (ular `apps\api\.env` faylida ham saqlanadi).
+- Server oynasini yopmang — sayt shu oyna ochiq turganda ishlaydi. SMS kodlar ham shu oynada chiqadi.
+- Windows Firewall Node.js uchun ruxsat so'rasa, **Cancel** ni bosish mumkin — sayt shu kompyuterda baribir ochiladi.
+- To'xtatish: **`SantexGo-toxtatish.bat`** ni ikki marta bosing (ma'lumotlar o'chmaydi).
+- Har kuni shu faylni bosing. Kod yangilangandan keyin (GitHub Desktop'da **Pull origin**): avval `SantexGo-toxtatish.bat`, keyin `SantexGo-ishga-tushirish.bat` — yangilanishlar o'zi qo'llanadi.
+- Xato chiqsa, oyna yopilmaydi: xato matnini o'qing yoki to'liq nusxalab Claude'ga yuboring. Qo'lda ishga tushirish quyidagi 3–6-qadamlarda.
+
 ## 1. Kerakli dasturlarni o'rnatish (bir marta)
 
 | Dastur                    | Nima uchun                              | Qayerdan                                       |

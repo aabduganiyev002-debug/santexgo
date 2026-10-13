@@ -4,6 +4,8 @@ Bu qo'llanma SantexGo'ni internetda ishlaydigan serverga o'rnatish, yangilash, z
 
 Birinchi o'rnatish taxminan 1–2 soat oladi (ko'p qismi DNS yangilanishini va birinchi build'ni kutish). Keyin yangi versiyani o'rnatish — bitta qator buyruq.
 
+Eng oson yo'l — [bitta buyruq bilan o'rnatish](#tezkor-ornatish--bitta-buyruq): serverni tayyorlashdan admin akkauntgacha hammasini skript o'zi bajaradi. Quyidagi 4- va 5-bo'limlar — o'sha ishlarni qo'lda bajarish yo'li.
+
 Barcha buyruqlar serverda, loyiha papkasida (`~/santexgo`) beriladi. Serverni boshqarishning asosiy vositasi — `sh scripts/prod.sh` skripti: buyruqsiz ishga tushirilsa, buyruqlar ro'yxatini ko'rsatadi (to'liq ro'yxat — [11-bo'lim](#11-buyruqlar-royxati)).
 
 Mundarija:
@@ -20,7 +22,7 @@ Mundarija:
 10. [Muammolar va yechimlar](#10-muammolar-va-yechimlar)
 11. [Buyruqlar ro'yxati](#11-buyruqlar-royxati)
 
-**Qisqacha** (server tayyor va Docker o'rnatilgan bo'lsa):
+**Qisqacha, qo'lda** (server tayyor va Docker o'rnatilgan bo'lsa):
 
 ```
 sh scripts/prod.sh init santexgo.uz admin.santexgo.uz siz@example.com
@@ -32,6 +34,42 @@ sh scripts/prod.sh admin         # admin akkaunt
 # Keyinchalik yangilash (deploy migratsiyalardan oldin zaxira nusxa oladi):
 git pull && sh scripts/prod.sh deploy
 ```
+
+## Tezkor o'rnatish — bitta buyruq
+
+Yangi Ubuntu 22.04 yoki 24.04 serverida hamma ishni bitta skript (`scripts/install.sh`) bajaradi. Oldindan kerak: server (2-bo'lim), DNS'da 3 ta A yozuv — `@`, `www`, `admin` server IP'siga (3-bo'lim) va Eskiz.uz akkaunti (5.2). Serverga kiring (`ssh root@SERVER_IP`) va bering:
+
+```
+curl -fsSL https://raw.githubusercontent.com/aabduganiyev002-debug/santexgo/main/scripts/install.sh -o install.sh && sudo sh install.sh
+```
+
+Avval savollar (1–2 daqiqa): sayt domeni, admin panel domeni (Enter — `admin.<domen>`), email (HTTPS sertifikati xabarlari uchun), Eskiz email va paroli, admin telefon raqami va paroli (kamida 10 belgi, ikki marta). Parollar ekranda ko'rinmaydi. So'ng skript DNS'ni tekshiradi (A yozuvlar server IP'siga qaraganmi, AAAA yo'qmi — muammo bo'lsa, tushuntirib, davom etishni so'raydi) va `Boshlaymizmi?` deb so'raydi.
+
+Keyin hammasi avtomatik (15–40 daqiqa), bosqichlar `[3/9]` kabi raqamlanadi:
+
+1. Tizim paketlari, avtomatik xavfsizlik yangilanishlari (4.6), swap — RAM 4 GB va undan kam bo'lsa (4.7), Redis uchun `vm.overcommit_memory`.
+2. Firewall (4.5): avval joriy SSH porti, keyin 80 va 443 ochiladi — ulanish uzilmaydi.
+3. Docker (4.8) — o'rnatilmagan bo'lsa.
+4. Kod — `/opt/santexgo` papkasiga.
+5. `docker/.env.production` — parollar tasodifiy, Eskiz sozlamalari yozilgan (5.1–5.2).
+6. `deploy`, `seed` va `admin` (5.3–5.5).
+
+Oxirida sayt va admin panel manzillari chiqadi. Keyingi qadamlar: do'konni sozlash (5.6), Eskiz shablonlari (5.2), tekshirish ro'yxati (5.7), serverdan tashqariga zaxira (7.3) va monitoring (8.4). SSH'ni himoyalash va alohida foydalanuvchi (4.3–4.4) — skript qilmaydi, o'zingiz bajaring.
+
+- **Xato bo'lsa** skript qaysi bosqichda to'xtaganini va sababini ko'rsatadi. Tuzatib, o'sha buyruqni qayta bering — qayta ishga tushirish xavfsiz. SSH ulanishi uzilsa ham: qayta ulanib, buyruqni qayta bering.
+- **Yangilash** — o'sha buyruqni qayta bering: o'rnatilgan serverda skript kodni yangilaydi va `deploy` qiladi (zaxira avtomatik); sozlamalar so'ralmaydi, admin va ma'lumotnomalarga tegilmaydi. SantexGo qo'lda (masalan, `~/santexgo` da) o'rnatilgan bo'lsa, skript o'sha papkani topib yangilaydi.
+- **Boshqarish** — bu qo'llanmadagi `sh scripts/prod.sh ...` buyruqlarini loyiha papkasida `sudo` bilan bering: `cd /opt/santexgo && sudo sh scripts/prod.sh status`.
+- `curl -fsSL <yuqoridagi havola> | sudo sh` ko'rinishi ham ishlaydi — savollar baribir terminaldan so'raladi.
+- Repozitoriy yopiq (private) bo'lsa, havola ishlamaydi: kodni 4.9-bo'limdagidek yuklab oling va loyiha papkasida `sudo sh scripts/install.sh` bering — skript o'sha papkani ishlatadi.
+
+**So'rovsiz** (masalan, avtomatlashtirishda): qiymatlar muhit o'zgaruvchilari bilan beriladi, berilganlari so'ralmaydi; terminal bo'lmasa, yetishmagan yoki noto'g'ri qiymat — xato. Bu usulda parollar buyruqlar tarixida qoladi.
+
+```
+sudo SITE_DOMAIN=santexgo.uz ACME_EMAIL=siz@example.com ESKIZ_EMAIL=siz@example.com \
+  ESKIZ_PASSWORD='...' ADMIN_PHONE=+998901234567 ADMIN_PASSWORD='...' sh install.sh
+```
+
+Ixtiyoriy: `ADMIN_DOMAIN` (standart `admin.<SITE_DOMAIN>`), `INSTALL_DIR` (`/opt/santexgo`), `SANTEXGO_REPO` va `SANTEXGO_BRANCH` (shu repozitoriy, `main`), `SEED_SAMPLE_PRODUCTS=true` (namunaviy mahsulotlar — faqat sinov serveri), `SKIP_FIREWALL=1` (firewall'ga tegmaslik), `SKIP_DNS_CHECK=1`. Eskiz parolida `'` belgisi bo'lmasin — sozlamalar fayliga xavfsiz yozib bo'lmaydi.
 
 ## 1. Nima o'rnatiladi
 
@@ -287,6 +325,8 @@ Muqobil yo'l — HTTPS va faqat shu repozitoriy uchun "fine-grained" token (Cont
 
 ## 5. Birinchi o'rnatish
 
+> [Bitta buyruq bilan o'rnatish](#tezkor-ornatish--bitta-buyruq) 4.5–4.9 va 5.1–5.5 qadamlarini avtomatik bajaradi. Quyida — har bir qadamni qo'lda bajarish yo'li.
+
 ### 5.1. Sozlamalar faylini yaratish
 
 ```
@@ -443,6 +483,8 @@ cd ~/santexgo
 git pull
 sh scripts/prod.sh deploy
 ```
+
+[Bitta buyruq bilan](#tezkor-ornatish--bitta-buyruq) o'rnatilgan serverda — o'sha buyruqni qayta bering (sozlamalar so'ralmaydi) yoki: `cd /opt/santexgo && sudo git pull && sudo sh scripts/prod.sh deploy`.
 
 - `deploy` build'dan keyin, migratsiyalardan oldin bazaning zaxira nusxasini o'zi oladi (migratsiyalar orqaga qaytarilmaydi — 6.3). Xohlasangiz, `git pull` dan oldin qo'lda ham olishingiz mumkin: `sh scripts/prod.sh backup`. Zaxira olinmasa (masalan, disk to'lgan), `deploy` to'xtaydi va sayt eski versiyada qoladi.
 - Bazaga yangi migratsiyalar avtomatik qo'llanadi — qo'lda hech narsa qilinmaydi.

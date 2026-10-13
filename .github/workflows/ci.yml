@@ -113,7 +113,7 @@ jobs:
           pnpm --filter @santexgo/api build
           cd apps/api
           node dist/main.js > api.log 2>&1 &
-          for i in $(seq 1 30); do
+          for _ in $(seq 1 30); do
             if curl -sf http://127.0.0.1:4000/api/health; then exit 0; fi
             sleep 2
           done
@@ -125,7 +125,7 @@ jobs:
           pnpm --filter @santexgo/web build
           cd apps/web
           node_modules/.bin/next start --port 3000 > web.log 2>&1 &
-          for i in $(seq 1 30); do
+          for _ in $(seq 1 30); do
             if curl -sf -o /dev/null http://127.0.0.1:3000/; then break; fi
             sleep 2
           done
@@ -144,7 +144,7 @@ jobs:
           pnpm --filter @santexgo/admin build
           cd apps/admin
           node_modules/.bin/next start --port 3001 > admin.log 2>&1 &
-          for i in $(seq 1 30); do
+          for _ in $(seq 1 30); do
             if curl -sf -o /dev/null http://127.0.0.1:3001/login; then break; fi
             sleep 2
           done
@@ -156,7 +156,9 @@ jobs:
         if: failure()
         run: docker compose --env-file .env -f docker/docker-compose.yml logs --tail 50
 
-  # Windows'da (Docker'siz): o'rnatish, kod formati (qator oxirlari), migratsiya, seed va API
+  # Windows'da (Docker'siz): ikki marta bosiladigan SantexGo-ishga-tushirish.bat orqali o'rnatish
+  # (xatoda to'xtashi ham), kod formati (qator oxirlari), migratsiya, seed, server oynasi
+  # (pnpm dev) va SantexGo-toxtatish.bat, API
   windows:
     name: pnpm setup:local (Windows)
     runs-on: windows-latest
@@ -187,11 +189,95 @@ jobs:
         shell: pwsh
         run: (Get-Content .env.example) -replace '^POSTGRES_PASSWORD=.*', 'POSTGRES_PASSWORD=santexgo_ci' | Set-Content .env
 
-      - name: pnpm setup:local --no-docker
-        run: pnpm setup:local --no-docker
+      # Foydalanuvchi faylni ikki marta bosgandek, lekin so'rovlarsiz: Docker'siz
+      # ("pnpm setup:local --no-docker"), server va brauzersiz, pauzasiz
+      - name: SantexGo-ishga-tushirish.bat (pnpm setup:local --no-docker)
+        shell: cmd
+        env:
+          SANTEXGO_NO_DOCKER: '1'
+          SANTEXGO_NO_DEV: '1'
+        run: |
+          call SantexGo-ishga-tushirish.bat
+          if errorlevel 1 exit /b 1
+
+      - name: .bat fayllar CRLF va ASCII, xatoda 1 kodi bilan chiqadi
+        shell: pwsh
+        env:
+          SANTEXGO_NO_DOCKER: '1'
+          SANTEXGO_NO_DEV: '1'
+        run: |
+          $PSNativeCommandUseErrorActionPreference = $false
+          foreach ($bat in 'SantexGo-ishga-tushirish.bat', 'SantexGo-toxtatish.bat') {
+            $text = [IO.File]::ReadAllText((Join-Path $PWD $bat))
+            if ($text -match '(?<!\r)\n') { throw "${bat}: qator oxirlari CRLF emas (.gitattributes)" }
+            if ($text -match '[^\x00-\x7F]') { throw "${bat}: faqat ASCII belgilar bo'lishi kerak" }
+          }
+
+          # 1) Eski Node.js: PATH boshidagi soxta node "v20.11.0" deydi
+          $fake = Join-Path $env:RUNNER_TEMP 'eski-node'
+          New-Item -ItemType Directory -Force $fake | Out-Null
+          Set-Content (Join-Path $fake 'node.cmd') '@echo v20.11.0'
+          $realPath = $env:PATH
+          $env:PATH = "$fake;$realPath"
+          cmd /d /c call SantexGo-ishga-tushirish.bat
+          $code = $LASTEXITCODE
+          $env:PATH = $realPath
+          if ($code -ne 1) { throw "Eski Node.js: chiqish kodi $code (1 kutilgan)" }
+
+          # 2) "pnpm setup:local" xatosi: .env da POSTGRES_PASSWORD bo'sh
+          Copy-Item .env .env.asl
+          (Get-Content .env.asl) -replace '^POSTGRES_PASSWORD=.*', 'POSTGRES_PASSWORD=' | Set-Content .env
+          cmd /d /c call SantexGo-ishga-tushirish.bat
+          $code = $LASTEXITCODE
+          Move-Item -Force .env.asl .env
+          if ($code -ne 1) { throw "pnpm setup:local xatosi: chiqish kodi $code (1 kutilgan)" }
+          Write-Host 'OK: ikkala xatoda ham 1 kodi bilan chiqdi'
+          exit 0
 
       - name: Kod formati, lint, tiplar va testlar
         run: pnpm check
+
+      - name: SantexGo-ishga-tushirish.bat serverni ochadi, SantexGo-toxtatish.bat yopadi
+        shell: pwsh
+        timeout-minutes: 12
+        env:
+          SANTEXGO_NO_DOCKER: '1'
+          SANTEXGO_NO_BROWSER: '1'
+          SANTEXGO_NO_PAUSE: '1'
+        run: |
+          $PSNativeCommandUseErrorActionPreference = $false
+          # CI'da server oynasi ko'rinmaydi - uning chiqishi faylga yoziladi
+          $env:SANTEXGO_DEV_LOG = Join-Path $env:RUNNER_TEMP 'santexgo-dev.log'
+
+          cmd /d /c call SantexGo-ishga-tushirish.bat
+          if ($LASTEXITCODE -ne 0) { throw "Ishga tushirish: chiqish kodi $LASTEXITCODE" }
+          Invoke-RestMethod http://127.0.0.1:4000/api/health
+          $site = Invoke-WebRequest http://localhost:3000/ -TimeoutSec 180
+          if ($site.Content -notmatch 'SantexGo') { throw "Sayt sahifasida 'SantexGo' yo'q" }
+          $admin = Invoke-WebRequest http://localhost:3001/login -TimeoutSec 180
+          if ($admin.Content -notmatch 'SantexGo Admin') { throw "Admin panelda 'SantexGo Admin' yo'q" }
+
+          # Qayta bosish: server ishlayapti - sozlashsiz, faqat brauzer ochiladi
+          $out = cmd /d /c call SantexGo-ishga-tushirish.bat | Out-String
+          $code = $LASTEXITCODE
+          Write-Host $out
+          if ($code -ne 0 -or $out -notmatch 'allaqachon ishlayapti') { throw "Qayta bosish: chiqish kodi $code" }
+
+          cmd /d /c call SantexGo-toxtatish.bat
+          if ($LASTEXITCODE -ne 0) { throw "To'xtatish: chiqish kodi $LASTEXITCODE" }
+          Start-Sleep -Seconds 3
+          $window = @(Get-CimInstance Win32_Process -Filter "Name='cmd.exe'" |
+            Where-Object CommandLine -like '*title SantexGo server*')
+          if ($window.Count) { throw 'Server oynasi yopilmadi' }
+          $left = @(Get-NetTCPConnection -State Listen -LocalPort 3000, 3001, 4000 -ErrorAction SilentlyContinue)
+          if ($left.Count) { $left | Format-Table LocalAddress, LocalPort, OwningProcess; throw "Portlar bo'shamadi" }
+          Write-Host "OK: server ishga tushdi va to'xtatildi"
+          exit 0
+
+      - name: Server oynasi logi (xato bo'lsa)
+        if: failure()
+        shell: pwsh
+        run: Get-Content (Join-Path $env:RUNNER_TEMP 'santexgo-dev.log') -Tail 200 -ErrorAction SilentlyContinue
 
       - name: API ishga tushadi va bazaga ulanadi
         shell: pwsh
@@ -293,3 +379,87 @@ jobs:
           test -f docker/.env.production || exit 0
           sh scripts/prod.sh compose ps -a
           sh scripts/prod.sh compose logs --no-color --tail 100
+
+  # Toza serverdagi kabi: scripts/install.sh kodni GitHub'dan o'zi yuklab oladi (checkout'dan faqat
+  # o'rnatuvchi fayli olinadi) va butun stack'ni bitta buyruq bilan ishga tushiradi. Ikkinchi
+  # marta — yangilash rejimi (git pull + deploy, sozlamalar va admin o'zgarmaydi)
+  installer:
+    name: "O'rnatuvchi: toza serverda bitta buyruq bilan"
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    env:
+      INSTALL_DIR: /opt/santexgo
+      # Pull request'da — PR branch'i (fork'dan bo'lsa, fork repozitoriysi)
+      SANTEXGO_REPO: https://github.com/${{ github.event.pull_request.head.repo.full_name || github.repository }}.git
+      SANTEXGO_BRANCH: ${{ github.head_ref || github.ref_name }}
+      SITE_DOMAIN: santexgo.localhost
+      ADMIN_DOMAIN: admin.santexgo.localhost
+      ACME_EMAIL: ci@example.com
+      ESKIZ_EMAIL: ci@example.com
+      # Maxsus belgilar ataylab: bo'shliq, # va $ sozlamalar faylida va konteynerda o'zgarmasin
+      ESKIZ_PASSWORD: 'ci not-real #$x'
+      ADMIN_PHONE: '+998901234567'
+      ADMIN_PASSWORD: ci-admin-password-123
+      SEED_SAMPLE_PRODUCTS: 'true'
+      SKIP_FIREWALL: '1'
+
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          sparse-checkout: scripts/install.sh
+          sparse-checkout-cone-mode: false
+
+      - name: Noto'g'ri ishga tushirish darhol rad etiladi (root'siz, noto'g'ri qiymatlar)
+        run: |
+          log=$RUNNER_TEMP/rad.log
+          if sh scripts/install.sh > "$log" 2>&1; then echo "✖ root'siz ishladi"; exit 1; fi
+          grep -q 'Root huquqi kerak' "$log"
+          for bad in SITE_DOMAIN=noto_g_ri "ESKIZ_PASSWORD=it's" ADMIN_PASSWORD=qisqa ADMIN_PHONE=12345; do
+            if timeout 120 sudo -E env "$bad" sh scripts/install.sh > "$log" 2>&1; then
+              cat "$log"
+              echo "✖ Qabul qilindi: $bad"
+              exit 1
+            fi
+            grep '✖' "$log"
+          done
+          test ! -e /opt/santexgo
+
+      - name: Birinchi o'rnatish (sudo sh install.sh)
+        run: sudo -E sh scripts/install.sh
+
+      - name: Kod shu commit'dan, sozlamalar fayli (600), Eskiz paroli konteynerda o'zgarmagan
+        working-directory: /opt/santexgo
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          test "$(sudo git rev-parse HEAD)" = "$EXPECTED_SHA"
+          test "$(sudo stat -c '%a %U' docker/.env.production)" = '600 root'
+          sudo grep -qxF "ESKIZ_PASSWORD='$ESKIZ_PASSWORD'" docker/.env.production
+          sudo grep -qx 'SEED_SAMPLE_PRODUCTS=true' docker/.env.production
+          test "$(sudo sh scripts/prod.sh compose exec -T api printenv ESKIZ_PASSWORD)" = "$ESKIZ_PASSWORD"
+
+      - name: Smoke test (Caddy orqali HTTPS)
+        working-directory: /opt/santexgo
+        run: sudo sh .github/scripts/prod-smoke.sh
+
+      - name: Ikkinchi marta — yangilash rejimi (git pull + deploy)
+        shell: bash
+        run: |
+          log=$RUNNER_TEMP/install-2.log
+          sudo -E sh scripts/install.sh 2>&1 | tee "$log"
+          grep -q 'Rejim: yangilash' "$log"
+          grep -q 'Migratsiyalardan oldin zaxira nusxa olinmoqda' "$log"
+          grep -q 'Admin akkaunt allaqachon bor' "$log"
+          test "$(sudo sh /opt/santexgo/scripts/prod.sh versions | wc -l)" -ge 2
+
+      - name: Yangilashdan keyin smoke test
+        working-directory: /opt/santexgo
+        run: sudo sh .github/scripts/prod-smoke.sh
+
+      - name: Konteynerlar holati va loglari (xato bo'lsa)
+        if: failure()
+        run: |
+          sudo test -f /opt/santexgo/docker/.env.production || exit 0
+          sudo sh /opt/santexgo/scripts/prod.sh compose ps -a
+          sudo sh /opt/santexgo/scripts/prod.sh compose logs --no-color --tail 100
