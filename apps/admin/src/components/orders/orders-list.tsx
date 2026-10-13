@@ -62,7 +62,7 @@ export function OrdersList() {
     <div>
       <PageHeader title="Buyurtmalar" description="Yangi buyurtmalar har daqiqada yangilanadi" />
 
-      <div className="scroll-row mb-3">
+      <div className="scroll-row mb-3 gap-2 lg:flex-wrap">
         {TABS.map((tab) => {
           const count =
             tab.value === 'all'

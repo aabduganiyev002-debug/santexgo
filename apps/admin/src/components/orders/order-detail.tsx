@@ -20,7 +20,7 @@ import { Modal } from '@santexgo/ui/modal';
 import { OrderStatusBadge } from '@santexgo/ui/order-status-badge';
 import { toast } from '@santexgo/ui/toast';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ExternalLink, Phone, Printer } from 'lucide-react';
+import { ExternalLink, Package, Phone, Printer } from 'lucide-react';
 import Link from 'next/link';
 import { type ReactNode, useState } from 'react';
 import { ErrorState, TableSkeleton } from '@/components/data/states';
@@ -95,7 +95,11 @@ export function OrderDetail({ number }: { number: string }) {
                               alt=""
                               className="h-full w-full object-contain"
                             />
-                          ) : null}
+                          ) : (
+                            <div className="flex h-full w-full items-center justify-center bg-slate-50 text-slate-300">
+                              <Package className="h-5 w-5" aria-hidden="true" />
+                            </div>
+                          )}
                         </div>
                         <div className="min-w-0">
                           <Link

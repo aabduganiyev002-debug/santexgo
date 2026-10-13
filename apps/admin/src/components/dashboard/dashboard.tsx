@@ -309,8 +309,9 @@ function ActiveOrders() {
                 className="flex flex-wrap items-center gap-x-3 gap-y-1 py-2.5 text-sm hover:text-brand-700"
               >
                 <span className="tabular w-28 shrink-0 font-semibold">{order.number}</span>
-                <span className="min-w-0 flex-1 truncate">{order.customerName}</span>
-                <span className="hidden text-xs text-slate-500 md:inline">
+                {/* Tor ustunda ism qisqarib ketmasin: joy yetmasa, summa va holat keyingi qatorga o'tadi */}
+                <span className="min-w-24 flex-1 truncate">{order.customerName}</span>
+                <span className="hidden text-xs text-slate-500 2xl:inline">
                   {formatDateTime(order.createdAt)}
                 </span>
                 <span className="tabular font-medium">{formatSom(order.total)}</span>

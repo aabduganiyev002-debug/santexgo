@@ -35,6 +35,7 @@ import { applyApiErrors } from '@santexgo/ui/form-errors';
 import { formatSom } from '@santexgo/ui/format';
 import { useCart, withoutServerSync } from '@/lib/stores/cart';
 import { ChoiceCard } from './choice-card';
+import { ProductImage } from '@/components/product/product-image';
 
 const NEW_ADDRESS = 'new';
 
@@ -439,7 +440,9 @@ export function CheckoutPage({ delivery }: { delivery: DeliverySettings }) {
                       alt=""
                       className="h-full w-full object-contain p-0.5"
                     />
-                  ) : null}
+                  ) : (
+                    <ProductImage image={null} alt="" />
+                  )}
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="line-clamp-2 leading-5 text-slate-800">{line.name}</p>

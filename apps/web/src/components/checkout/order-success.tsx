@@ -17,6 +17,7 @@ import { api } from '@santexgo/ui/api-client';
 import { errorMessage } from '@santexgo/ui/api-errors';
 import { formatDateTime, formatSom } from '@santexgo/ui/format';
 import { toast } from '@santexgo/ui/toast';
+import { ProductImage } from '@/components/product/product-image';
 
 /** "Buyurtmangiz qabul qilindi": raqam (ORDER-10254), tarkib, summa va keyingi qadam. */
 export function OrderSuccess({
@@ -94,7 +95,9 @@ export function OrderSuccess({
                 {item.imageUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element -- API tayyorlagan WebP rasm
                   <img src={item.imageUrl} alt="" className="h-full w-full object-contain p-0.5" />
-                ) : null}
+                ) : (
+                  <ProductImage image={null} alt="" />
+                )}
               </div>
               <div className="min-w-0 flex-1">
                 <p className="line-clamp-2 leading-5">{item.name}</p>
@@ -117,7 +120,13 @@ export function OrderSuccess({
             <dt className="text-slate-500">{DELIVERY_METHOD_LABELS[order.deliveryMethod]}</dt>
             <dd className="font-medium">
               {address
-                ? [address.region, address.district, address.street, address.house]
+                ? [
+                    address.region,
+                    address.district,
+                    [address.street, address.house].filter(Boolean).join(', '),
+                    address.apartment ? `${address.apartment}-xonadon` : null,
+                    address.landmark ? `Mo‘ljal: ${address.landmark}` : null,
+                  ]
                     .filter(Boolean)
                     .join(', ')
                 : 'Do‘kondan'}

@@ -25,6 +25,7 @@ import { errorMessage } from '@santexgo/ui/api-errors';
 import { formatDateTime, formatSom, unitLabel } from '@santexgo/ui/format';
 import { lineFromView, useCart } from '@/lib/stores/cart';
 import { toast } from '@santexgo/ui/toast';
+import { ProductImage } from '@/components/product/product-image';
 
 /** Buyurtma tafsiloti: holat bosqichlari, mahsulotlar, manzil, to'lov, bekor qilish, qayta buyurtma. */
 export function OrderDetail({ number }: { number: string }) {
@@ -133,7 +134,9 @@ export function OrderDetail({ number }: { number: string }) {
                 {item.imageUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element -- API tayyorlagan WebP rasm
                   <img src={item.imageUrl} alt="" className="h-full w-full object-contain p-1" />
-                ) : null}
+                ) : (
+                  <ProductImage image={null} alt="" />
+                )}
               </div>
               <div className="min-w-0 flex-1 text-sm">
                 <p className="text-xs font-semibold uppercase text-slate-500">{item.brandName}</p>
