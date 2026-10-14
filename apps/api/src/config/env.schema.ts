@@ -9,38 +9,126 @@ function isValidTimeZone(timeZone: string): boolean {
   }
 }
 
+/** .env dagi bo'sh qiymat ("KEY=") berilmagan deb hisoblanadi. */
+function optional<T extends z.ZodType>(schema: T) {
+  return z.preprocess((value) => (value === '' ? undefined : value), schema.optional());
+}
+
 /** API ishga tushishidan oldin barcha muhit o'zgaruvchilari shu sxema bo'yicha tekshiriladi. */
-export const envSchema = z.object({
-  NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
-  HOST: z.string().min(1).default('0.0.0.0'),
-  PORT: z.coerce.number().int().min(1).max(65_535).default(4000),
-  APP_TIMEZONE: z
-    .string()
-    .default('Asia/Tashkent')
-    .refine(isValidTimeZone, { message: "Noma'lum vaqt zonasi" }),
+export const envSchema = z
+  .object({
+    NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
+    HOST: z.string().min(1).default('0.0.0.0'),
+    PORT: z.coerce.number().int().min(1).max(65_535).default(4000),
+    APP_TIMEZONE: z
+      .string()
+      .default('Asia/Tashkent')
+      .refine(isValidTimeZone, { message: "Noma'lum vaqt zonasi" }),
+    /**
+     * Qaysi proksi-serverlarga ishonish (mijozning haqiqiy IP manzilini aniqlash uchun).
+     * Standart: lokal va ichki tarmoq (Docker, Caddy, Next.js server).
+     */
+    TRUST_PROXY: z.string().min(1).default('loopback, linklocal, uniquelocal'),
 
-  DATABASE_URL: z.string().regex(/^postgres(ql)?:\/\/.+/, {
-    message: 'postgresql:// bilan boshlanadigan manzil bo‘lishi kerak',
-  }),
-  /** Bitta API nusxasi uchun bazaga ulanishlar soni */
-  DATABASE_POOL_SIZE: z.coerce.number().int().min(1).max(100).default(10),
+    DATABASE_URL: z.string().regex(/^postgres(ql)?:\/\/.+/, {
+      message: 'postgresql:// bilan boshlanadigan manzil bo‘lishi kerak',
+    }),
+    /** Bitta API nusxasi uchun bazaga ulanishlar soni */
+    DATABASE_POOL_SIZE: z.coerce.number().int().min(1).max(100).default(10),
 
-  /** Vergul bilan ajratilgan frontend manzillari */
-  CORS_ORIGINS: z
-    .string()
-    .default('')
-    .transform((value) =>
-      value
-        .split(',')
-        .map((origin) => origin.trim())
-        .filter(Boolean),
-    )
-    .pipe(z.array(z.url({ protocol: /^https?$/ }))),
+    /** Rate limit va kesh uchun. Berilmasa, xotirada saqlanadi (faqat bitta API nusxasi uchun) */
+    REDIS_URL: optional(
+      z.string().regex(/^rediss?:\/\/.+/, { message: 'redis:// bilan boshlanishi kerak' }),
+    ),
 
-  SWAGGER_ENABLED: z.stringbool().default(false),
-});
+    /** Vergul bilan ajratilgan frontend manzillari */
+    CORS_ORIGINS: z
+      .string()
+      .default('')
+      .transform((value) =>
+        value
+          .split(',')
+          .map((origin) => origin.trim())
+          .filter(Boolean),
+      )
+      .pipe(z.array(z.url({ protocol: /^https?$/ }))),
 
-export type Env = z.infer<typeof envSchema>;
+    SWAGGER_ENABLED: z.stringbool().default(false),
+
+    // ── Auth ──
+    /** Tokenlar va SMS kodlarni imzolash uchun maxfiy kalit (kamida 32 belgi, tasodifiy) */
+    AUTH_SECRET: z.string().min(32, { message: 'kamida 32 belgidan iborat tasodifiy satr' }),
+    ACCESS_TOKEN_TTL_MINUTES: z.coerce.number().int().min(1).max(60).default(15),
+    REFRESH_TOKEN_TTL_DAYS: z.coerce.number().int().min(1).max(180).default(30),
+    /** Cookie faqat HTTPS orqali yuborilsin. Berilmasa: production'da true */
+    COOKIE_SECURE: optional(z.stringbool()),
+    /** Masalan ".santexgo.uz" — bo'sh bo'lsa, cookie faqat joriy domenga tegishli */
+    COOKIE_DOMAIN: optional(z.string().regex(/^\.?[a-z0-9.-]+$/i)),
+
+    // ── Fayllar (rasmlar, PDF) ──
+    /** local — server diskida (STORAGE_LOCAL_DIR); s3 — S3-mos xizmat (Cloudflare R2, AWS, SeaweedFS) */
+    STORAGE_DRIVER: z.enum(['local', 's3']).default('local'),
+    STORAGE_LOCAL_DIR: z.string().min(1).default('uploads'),
+    /** Fayllarning ochiq manzili: "/api/media" (local) yoki "https://media.santexgo.uz" (S3/CDN) */
+    MEDIA_PUBLIC_URL: z
+      .string()
+      .min(1)
+      .default('/api/media')
+      .refine((value) => value.startsWith('/') || /^https?:\/\//.test(value), {
+        message: '"/" yoki http(s):// bilan boshlanishi kerak',
+      }),
+    S3_ENDPOINT: optional(z.url({ protocol: /^https?$/ })),
+    S3_REGION: z.string().min(1).default('auto'),
+    S3_BUCKET: optional(z.string().min(3).max(63)),
+    S3_ACCESS_KEY: optional(z.string().min(1)),
+    S3_SECRET_KEY: optional(z.string().min(1)),
+    /** SeaweedFS va MinIO uchun true (Cloudflare R2 va AWS uchun false) */
+    S3_FORCE_PATH_STYLE: z.stringbool().default(false),
+
+    // ── SMS ──
+    /** console — kod terminalga chiqadi (faqat lokal); eskiz — Eskiz.uz orqali haqiqiy SMS */
+    SMS_PROVIDER: z.enum(['console', 'eskiz']).default('console'),
+    SMS_SENDER: z.string().min(1).max(20).default('4546'),
+    ESKIZ_EMAIL: optional(z.email()),
+    ESKIZ_PASSWORD: optional(z.string().min(1)),
+    /** Bir kunda yuboriladigan SMS'lar soni chegarasi (SMS balansini himoya qilish uchun) */
+    SMS_DAILY_LIMIT: z.coerce.number().int().min(1).default(2000),
+    /** Buyurtma holati haqida mijozga SMS (qabul qilindi, yo'lga chiqdi, yetkazildi, bekor qilindi) */
+    ORDER_SMS_ENABLED: z.stringbool().default(false),
+  })
+  .superRefine((env, ctx) => {
+    if (env.SMS_PROVIDER === 'eskiz' && (!env.ESKIZ_EMAIL || !env.ESKIZ_PASSWORD)) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['ESKIZ_EMAIL'],
+        message: 'SMS_PROVIDER=eskiz uchun ESKIZ_EMAIL va ESKIZ_PASSWORD berilishi shart',
+      });
+    }
+    if (
+      env.STORAGE_DRIVER === 's3' &&
+      (!env.S3_BUCKET || !env.S3_ACCESS_KEY || !env.S3_SECRET_KEY)
+    ) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['S3_BUCKET'],
+        message:
+          'STORAGE_DRIVER=s3 uchun S3_BUCKET, S3_ACCESS_KEY va S3_SECRET_KEY berilishi shart',
+      });
+    }
+    if (env.NODE_ENV === 'production' && env.SMS_PROVIDER === 'console') {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['SMS_PROVIDER'],
+        message: 'production muhitida haqiqiy SMS provayder kerak (SMS_PROVIDER=eskiz)',
+      });
+    }
+  })
+  .transform((env) => ({
+    ...env,
+    COOKIE_SECURE: env.COOKIE_SECURE ?? env.NODE_ENV === 'production',
+  }));
+
+export type Env = z.output<typeof envSchema>;
 
 /** ConfigModule uchun: xato bo'lsa, qaysi o'zgaruvchi noto'g'riligini aniq aytib, ishga tushishni to'xtatadi. */
 export function validateEnv(raw: Record<string, unknown>): Env {

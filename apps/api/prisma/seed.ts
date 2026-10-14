@@ -2,22 +2,22 @@
  * Boshlang'ich ma'lumotlar: ombor, materiallar, xususiyatlar, kategoriyalar, brendlar,
  * namunaviy mahsulotlar, chegirmalar, homepage tugmalari, sozlamalar va birinchi admin.
  *
- * Qayta ishga tushirish xavfsiz: mavjud yozuvlar yangilanadi, dublikat yaratilmaydi,
- * mavjud ombor qoldiqlari va admin paroli o'zgartirilmaydi.
+ * Qayta ishga tushirish xavfsiz: dublikat yaratilmaydi, mavjud ombor qoldiqlari, sozlamalar
+ * va admin paroli o'zgartirilmaydi. Lokal muhitda ma'lumotnomalar seed'dagi holatga yangilanadi.
+ * Production'da (SEED_SAMPLE_PRODUCTS=false) namunaviy brend, mahsulot va chegirmalarsiz; ma'lumotnomalar
+ * faqat bo'sh bazaga (birinchi o'rnatishda) yoziladi — admin o'zgartirgan yoki o'chirgan yozuvlar
+ * keyingi ishga tushirishlarda qayta paydo bo'lmaydi.
  *
  * Ishga tushirish: pnpm db:seed
+ * Faqat admin yaratish/tayinlash: SEED_SCOPE=admin pnpm db:seed
  */
 import { PrismaPg } from '@prisma/adapter-pg';
-import {
-  calculatePrice,
-  isDiscountActive,
-  normalizeUzPhone,
-  slugify,
-  type DiscountRule,
-} from '@santexgo/shared';
+import { isDiscountActive, normalizeUzPhone, slugify } from '@santexgo/shared';
 import { PrismaClient, type Prisma } from '../src/generated/prisma/client.js';
 import { ADMIN_PASSWORD_MIN_LENGTH, hashPassword } from '../src/common/security/password.js';
 import { dbErrorHint } from '../src/infra/prisma/db-error-hint.js';
+import { buildSearchText } from '../src/modules/catalog/search-text.js';
+import { priceProduct } from '../src/modules/pricing/pricing.calculator.js';
 import {
   ATTRIBUTES,
   BRANDS,
@@ -83,18 +83,32 @@ function attributeValueData(value: AttributeValue): {
   return { numberValue: null, textValue: value, booleanValue: null };
 }
 
-async function seedReferenceData(prisma: PrismaClient) {
-  const warehouse = await prisma.warehouse.upsert({
+/** Asosiy ombor — mahsulot qoldig'i uchun shart, admin panelda yaratib bo'lmaydi; borini o'zgartirmaydi */
+function seedWarehouse(prisma: PrismaClient) {
+  return prisma.warehouse.upsert({
     where: { code: WAREHOUSE.code },
     update: {},
     create: { ...WAREHOUSE, isDefault: true },
   });
+}
+
+/** Ma'lumotnomalar to'liq yozilganini bildiruvchi belgi (sozlamalar jadvalida, saytda ko'rinmaydi) */
+const REFERENCE_DATA_MARKER = 'seed.referenceData';
+
+/**
+ * withSamples=true (lokal): yozuvlar seed'dagi holatga keltiriladi, namunaviy brendlar va
+ * variant guruhlari ham yoziladi. withSamples=false (production): mavjud yozuvlarga tegilmaydi,
+ * brendlar va guruhlar (ular namunaviy mahsulotlar uchun) yaratilmaydi.
+ */
+async function seedReferenceData(prisma: PrismaClient, withSamples: boolean) {
+  const overwrite = withSamples;
+  const warehouse = await seedWarehouse(prisma);
 
   const materialIds = new Map<string, string>();
   for (const m of MATERIALS) {
     const row = await prisma.material.upsert({
       where: { slug: m.slug },
-      update: { name: m.name, fullName: m.fullName, sortOrder: m.sortOrder },
+      update: overwrite ? { name: m.name, fullName: m.fullName, sortOrder: m.sortOrder } : {},
       create: m,
     });
     materialIds.set(m.slug, row.id);
@@ -102,7 +116,11 @@ async function seedReferenceData(prisma: PrismaClient) {
 
   const attributeIds = new Map<string, string>();
   for (const a of ATTRIBUTES) {
-    const row = await prisma.attribute.upsert({ where: { key: a.key }, update: a, create: a });
+    const row = await prisma.attribute.upsert({
+      where: { key: a.key },
+      update: overwrite ? a : {},
+      create: a,
+    });
     attributeIds.set(a.key, row.id);
   }
 
@@ -116,7 +134,7 @@ async function seedReferenceData(prisma: PrismaClient) {
     const data = { name: c.name, sortOrder: c.sortOrder, parentId };
     const row = await prisma.category.upsert({
       where: { slug: c.slug },
-      update: data,
+      update: overwrite ? data : {},
       create: { ...data, slug: c.slug },
     });
     categoryIds.set(c.slug, row.id);
@@ -125,24 +143,30 @@ async function seedReferenceData(prisma: PrismaClient) {
       const attributeId = requireId(attributeIds, key, 'xususiyat');
       await prisma.categoryAttribute.upsert({
         where: { categoryId_attributeId: { categoryId: row.id, attributeId } },
-        update: { sortOrder: index },
+        update: overwrite ? { sortOrder: index } : {},
         create: { categoryId: row.id, attributeId, sortOrder: index },
       });
     }
   }
 
   const brandIds = new Map<string, string>();
-  for (const b of BRANDS) {
-    const row = await prisma.brand.upsert({ where: { slug: b.slug }, update: b, create: b });
+  for (const b of withSamples ? BRANDS : []) {
+    const row = await prisma.brand.upsert({
+      where: { slug: b.slug },
+      update: overwrite ? b : {},
+      create: b,
+    });
     brandIds.set(b.slug, row.id);
   }
 
   const groupIds = new Map<string, string>();
-  for (const g of GROUPS) {
+  for (const g of withSamples ? GROUPS : []) {
     const existing = await prisma.productGroup.findFirst({ where: { name: g.name } });
-    const row = existing
-      ? await prisma.productGroup.update({ where: { id: existing.id }, data: g })
-      : await prisma.productGroup.create({ data: g });
+    const row = !existing
+      ? await prisma.productGroup.create({ data: g })
+      : overwrite
+        ? await prisma.productGroup.update({ where: { id: existing.id }, data: g })
+        : existing;
     groupIds.set(g.name, row.id);
   }
 
@@ -263,28 +287,34 @@ async function seedDiscounts(
   }
 }
 
+/** Kategoriya va uning barcha ota-kategoriyalari (chegirma va qidiruv matni uchun). */
+async function categoryPaths(prisma: PrismaClient) {
+  const categories = await prisma.category.findMany({
+    select: { id: true, parentId: true, name: true },
+  });
+  const byId = new Map(categories.map((c) => [c.id, c]));
+  return (categoryId: string) => {
+    const path: { id: string; name: string }[] = [];
+    let current = byId.get(categoryId);
+    while (current && !path.some((c) => c.id === current!.id)) {
+      path.unshift({ id: current.id, name: current.name });
+      current = current.parentId ? byId.get(current.parentId) : undefined;
+    }
+    return path;
+  };
+}
+
 /**
- * Har bir mahsulotning joriy narxini amaldagi chegirmalar bo'yicha qayta hisoblaydi.
- * Kategoriyaga qo'yilgan chegirma uning barcha subkategoriyalariga ham tegishli.
- * (Keyingi bosqichda bu mantiq Pricing moduliga ko'chadi.)
+ * Har bir mahsulotning joriy narxini amaldagi chegirmalar bo'yicha qayta hisoblaydi
+ * (API'dagi narx moduli bilan bir xil formula). Kategoriyaga qo'yilgan chegirma
+ * barcha subkategoriyalarga ham tegishli.
  */
 async function recalculatePrices(prisma: PrismaClient): Promise<number> {
   const now = new Date();
   const discounts = (
     await prisma.discount.findMany({ where: { isActive: true }, include: { targets: true } })
   ).filter((d) => isDiscountActive(d, now));
-
-  const categories = await prisma.category.findMany({ select: { id: true, parentId: true } });
-  const parentOf = new Map(categories.map((c) => [c.id, c.parentId]));
-  const withAncestors = (categoryId: string): Set<string> => {
-    const result = new Set<string>();
-    let current: string | null | undefined = categoryId;
-    while (current && !result.has(current)) {
-      result.add(current);
-      current = parentOf.get(current);
-    }
-    return result;
-  };
+  const pathOf = await categoryPaths(prisma);
 
   const products = await prisma.product.findMany({
     select: {
@@ -299,19 +329,8 @@ async function recalculatePrices(prisma: PrismaClient): Promise<number> {
 
   let changed = 0;
   for (const product of products) {
-    const categoryIds = withAncestors(product.categoryId);
-    const rules: DiscountRule[] = discounts
-      .filter((d) =>
-        d.targets.some(
-          (t) =>
-            t.productId === product.id ||
-            t.brandId === product.brandId ||
-            (t.categoryId !== null && categoryIds.has(t.categoryId)),
-        ),
-      )
-      .map((d) => ({ id: d.id, type: d.type, value: d.value, priority: d.priority }));
-
-    const price = calculatePrice(product.basePrice, rules);
+    const path = new Set(pathOf(product.categoryId).map((c) => c.id));
+    const price = priceProduct(product, discounts, path);
     if (
       price.finalPrice !== product.currentPrice ||
       price.discountId !== product.appliedDiscountId
@@ -326,9 +345,51 @@ async function recalculatePrices(prisma: PrismaClient): Promise<number> {
   return changed;
 }
 
-async function seedHomeAndSettings(
+/** Qidiruv matni (API'dagi bilan bir xil): nom, SKU, brend, kategoriya, material, o'lchamlar. */
+async function refreshSearchText(prisma: PrismaClient): Promise<void> {
+  const pathOf = await categoryPaths(prisma);
+  const products = await prisma.product.findMany({
+    select: {
+      id: true,
+      name: true,
+      sku: true,
+      searchText: true,
+      categoryId: true,
+      brand: { select: { name: true } },
+      material: { select: { name: true, fullName: true } },
+      attributeValues: {
+        select: {
+          numberValue: true,
+          textValue: true,
+          attribute: { select: { unit: true, type: true } },
+        },
+      },
+    },
+  });
+  for (const product of products) {
+    const text = buildSearchText({
+      name: product.name,
+      sku: product.sku,
+      brand: product.brand.name,
+      categories: pathOf(product.categoryId).map((c) => c.name),
+      material: product.material,
+      attributes: product.attributeValues
+        .filter((v) => v.attribute.type !== 'BOOLEAN')
+        .map((v) => ({
+          unit: v.attribute.unit,
+          value: v.numberValue !== null ? String(v.numberValue) : (v.textValue ?? ''),
+        })),
+    });
+    if (text !== product.searchText) {
+      await prisma.product.update({ where: { id: product.id }, data: { searchText: text } });
+    }
+  }
+}
+
+async function seedHomeCollections(
   prisma: PrismaClient,
   refs: Awaited<ReturnType<typeof seedReferenceData>>,
+  overwrite: boolean,
 ): Promise<void> {
   for (const c of HOME_COLLECTIONS) {
     const data = {
@@ -340,12 +401,14 @@ async function seedHomeAndSettings(
     };
     await prisma.homeCollection.upsert({
       where: { slug: c.slug },
-      update: data,
+      update: overwrite ? data : {},
       create: { ...data, slug: c.slug },
     });
   }
+}
 
-  // Sozlamalar faqat yo'q bo'lsa yoziladi — admin o'zgartirganlari saqlanib qoladi
+/** Sozlamalar faqat yo'q bo'lsa yoziladi — admin o'zgartirganlari saqlanib qoladi */
+async function seedSettings(prisma: PrismaClient): Promise<void> {
   for (const [key, value] of Object.entries(SETTINGS)) {
     await prisma.setting.upsert({
       where: { key },
@@ -357,16 +420,21 @@ async function seedHomeAndSettings(
 
 interface AdminInput {
   phone: string;
-  password: string;
+  /** Faqat yangi akkaunt uchun kerak — mavjud foydalanuvchiga admin roli parolsiz beriladi */
+  password: string | null;
   firstName: string;
   lastName: string;
 }
 
-/** Admin sozlamalarini bazaga hech narsa yozilmasdan oldin tekshiradi. */
-function readAdminInput(): AdminInput | null {
+/**
+ * Admin sozlamalarini bazaga hech narsa yozilmasdan oldin tekshiradi. To'liq seed'da admin faqat
+ * ADMIN_PASSWORD berilganda yaratiladi; SEED_SCOPE=admin da telefon raqam yetarli (mavjud
+ * foydalanuvchini admin qilish uchun).
+ */
+function readAdminInput(adminOnly: boolean): AdminInput | null {
   const password = process.env.ADMIN_PASSWORD ?? '';
-  if (!password) return null;
-  if (password.length < ADMIN_PASSWORD_MIN_LENGTH) {
+  if (!password && !adminOnly) return null;
+  if (password && password.length < ADMIN_PASSWORD_MIN_LENGTH) {
     throw new Error(
       `ADMIN_PASSWORD kamida ${ADMIN_PASSWORD_MIN_LENGTH} belgidan iborat bo'lishi kerak ` +
         `(parolda # bo'lsa, .env faylida qiymatni qo'shtirnoqqa oling)`,
@@ -378,7 +446,7 @@ function readAdminInput(): AdminInput | null {
   }
   return {
     phone,
-    password,
+    password: password || null,
     firstName: process.env.ADMIN_FIRST_NAME || 'Admin',
     lastName: process.env.ADMIN_LAST_NAME || 'SantexGo',
   };
@@ -399,6 +467,12 @@ async function seedAdmin(prisma: PrismaClient, input: AdminInput | null): Promis
     });
     return `Admin mavjud: ${phone} (parol o'zgartirilmadi)`;
   }
+  if (!input.password) {
+    throw new Error(
+      `${phone} raqamli foydalanuvchi yo'q — yangi admin uchun ADMIN_PASSWORD ` +
+        `(kamida ${ADMIN_PASSWORD_MIN_LENGTH} belgi) kerak`,
+    );
+  }
 
   await prisma.user.create({
     data: {
@@ -415,27 +489,70 @@ async function seedAdmin(prisma: PrismaClient, input: AdminInput | null): Promis
 
 async function main(): Promise<void> {
   validateCatalog();
-  const adminInput = readAdminInput();
+  const adminOnly = process.env.SEED_SCOPE === 'admin';
+  const adminInput = readAdminInput(adminOnly);
 
   const prisma = new PrismaClient({
     adapter: new PrismaPg({ connectionString: requireEnv('DATABASE_URL') }),
   });
 
+  // Production'da (SEED_SAMPLE_PRODUCTS=false) namunaviy mahsulot va chegirmalar yozilmaydi —
+  // faqat ma'lumotnomalar (kategoriyalar, materiallar, xususiyatlar, ombor), sozlamalar va admin
+  const withSamples = process.env.SEED_SAMPLE_PRODUCTS !== 'false';
+
   try {
-    const refs = await seedReferenceData(prisma);
-    const { productIds, restocked } = await seedProducts(prisma, refs);
-    await seedDiscounts(prisma, refs, productIds);
-    const repriced = await recalculatePrices(prisma);
-    await seedHomeAndSettings(prisma, refs);
-    const adminMessage = await seedAdmin(prisma, adminInput);
+    if (adminOnly) {
+      if (!adminInput) throw new Error('SEED_SCOPE=admin uchun ADMIN_PHONE kerak');
+      console.info(`✔ ${await seedAdmin(prisma, adminInput)}`);
+      return;
+    }
+    const messages: string[] = [];
+    // Production: ma'lumotnomalar bir marta to'liq yoziladi — keyin ularni admin boshqaradi.
+    // Belgi oxirida qo'yiladi: yarim qolgan birinchi urinishdan keyin qayta ishga tushirish
+    // yetishmaganlarini yozib tugatadi
+    const referenceDone =
+      !withSamples &&
+      (await prisma.setting.findUnique({ where: { key: REFERENCE_DATA_MARKER } })) !== null;
+    if (referenceDone) {
+      await seedWarehouse(prisma);
+      messages.push(
+        "Ma'lumotnomalar allaqachon bor — o'zgartirilmadi (admin panel orqali boshqariladi)",
+      );
+    } else {
+      const refs = await seedReferenceData(prisma, withSamples);
+      messages.push(
+        `Materiallar: ${refs.materialIds.size}, kategoriyalar: ${refs.categoryIds.size}, ` +
+          `brendlar: ${refs.brandIds.size}`,
+      );
+      if (withSamples) {
+        const { productIds, restocked } = await seedProducts(prisma, refs);
+        await seedDiscounts(prisma, refs, productIds);
+        const repriced = await recalculatePrices(prisma);
+        await refreshSearchText(prisma);
+        messages.push(
+          `Mahsulotlar: ${productIds.size} (yangi qoldiq yozilgan: ${restocked}); ` +
+            `chegirmalar: ${DISCOUNTS.length}, narxi yangilangan mahsulotlar: ${repriced}`,
+        );
+      } else {
+        messages.push(
+          'Namunaviy brend, mahsulot va chegirmalar yozilmadi (SEED_SAMPLE_PRODUCTS=false)',
+        );
+      }
+      await seedHomeCollections(prisma, refs, withSamples);
+      await prisma.setting.upsert({
+        where: { key: REFERENCE_DATA_MARKER },
+        update: {},
+        create: {
+          key: REFERENCE_DATA_MARKER,
+          value: { version: 1, completedAt: new Date().toISOString() },
+        },
+      });
+    }
+    await seedSettings(prisma);
+    messages.push(await seedAdmin(prisma, adminInput));
 
     console.info('✔ Seed tugadi');
-    console.info(
-      `  Materiallar: ${refs.materialIds.size}, kategoriyalar: ${refs.categoryIds.size}, brendlar: ${refs.brandIds.size}`,
-    );
-    console.info(`  Mahsulotlar: ${productIds.size} (yangi qoldiq yozilgan: ${restocked})`);
-    console.info(`  Chegirmalar: ${DISCOUNTS.length}, narxi yangilangan mahsulotlar: ${repriced}`);
-    console.info(`  ${adminMessage}`);
+    for (const message of messages) console.info(`  ${message}`);
   } finally {
     await prisma.$disconnect();
   }

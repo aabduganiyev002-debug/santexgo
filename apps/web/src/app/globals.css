@@ -1,0 +1,24 @@
+@import 'tailwindcss';
+/* Umumiy dizayn tokenlari va bazaviy klasslar (admin panel bilan bir xil) */
+@import '@santexgo/ui/theme.css';
+/* Tailwind umumiy UI paketidagi klasslarni ham ko'rishi uchun */
+@source '../../../../packages/ui/src';
+
+/* Telefonda pastki menyu ostida kontent yashirinib qolmasligi uchun */
+.pb-safe {
+  padding-bottom: calc(4rem + env(safe-area-inset-bottom));
+}
+@media (min-width: 1024px) {
+  .pb-safe {
+    padding-bottom: 0;
+  }
+}
+
+@keyframes nav-progress {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(300%);
+  }
+}

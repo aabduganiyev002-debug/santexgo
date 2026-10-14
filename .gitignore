@@ -15,7 +15,20 @@ apps/api/src/generated/
 .env
 .env.*
 !.env.example
+!.env.production.example
 
 # Tizim va loglar
 .DS_Store
 *.log
+
+# Lokal yuklangan fayllar (rasmlar)
+apps/api/uploads/
+
+# Next.js avtomatik yaratadigan tiplar
+next-env.d.ts
+
+# Lokal Redis snapshot (redis-server loyiha papkasidan ishga tushirilganda)
+dump.rdb
+
+# Production backup papkasi (docker/docker-compose.prod.yml, BACKUP_DIR)
+docker/backups/

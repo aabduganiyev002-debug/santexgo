@@ -1,0 +1,10 @@
+-- AlterTable
+ALTER TABLE "orders" ADD COLUMN     "admin_note" VARCHAR(1000),
+ADD COLUMN     "idempotency_key" VARCHAR(64);
+
+-- CreateIndex
+CREATE INDEX "orders_customer_phone_idx" ON "orders"("customer_phone");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "orders_user_id_idempotency_key_key" ON "orders"("user_id", "idempotency_key");
+

@@ -9,7 +9,7 @@
  *   1. Node.js, pnpm va Docker borligini tekshiradi
  *   2. .env fayllarini tasodifiy xavfsiz parollar bilan yaratadi (mavjud fayllarga tegmaydi)
  *   3. Bog'liqliklarni o'rnatadi
- *   4. PostgreSQL, Redis, Meilisearch va S3 xizmatlarini Docker'da ishga tushiradi
+ *   4. PostgreSQL va Redis xizmatlarini Docker'da ishga tushiradi
  *   5. Bazaga migratsiyalarni qo'llaydi
  *   6. Namunaviy katalog va admin akkauntni yozadi
  *
@@ -29,6 +29,10 @@ const ROOT_ENV = path.join(ROOT, '.env');
 const ROOT_ENV_EXAMPLE = path.join(ROOT, '.env.example');
 const API_ENV = path.join(ROOT, 'apps', 'api', '.env');
 const API_ENV_EXAMPLE = path.join(ROOT, 'apps', 'api', '.env.example');
+const WEB_ENV = path.join(ROOT, 'apps', 'web', '.env');
+const WEB_ENV_EXAMPLE = path.join(ROOT, 'apps', 'web', '.env.example');
+const ADMIN_ENV = path.join(ROOT, 'apps', 'admin', '.env');
+const ADMIN_ENV_EXAMPLE = path.join(ROOT, 'apps', 'admin', '.env.example');
 const COMPOSE = 'docker compose --env-file .env -f docker/docker-compose.yml';
 const MIN_NODE = { major: 22, minor: 12 };
 const PNPM_INSTALL_HINT =
@@ -131,7 +135,7 @@ function checkTools() {
 
 // ─────────────────────────────── .env fayllari ───────────────────────────────
 
-const secret = () => randomBytes(16).toString('hex');
+const secret = (bytes = 16) => randomBytes(bytes).toString('hex');
 
 /** Adashtiradigan belgilarsiz (0/O, 1/l/I) o'qish va yozish oson parol. */
 function readablePassword(length = 14) {
@@ -154,6 +158,41 @@ function readEnv(file) {
   return parseEnv(readFileSync(file, 'utf8'));
 }
 
+function redisUrlFrom(infra) {
+  if (!useDocker || !infra.REDIS_PASSWORD) return '';
+  const port = infra.REDIS_PORT || '6379';
+  return `redis://:${encodeURIComponent(infra.REDIS_PASSWORD)}@127.0.0.1:${port}`;
+}
+
+/**
+ * Mavjud .env fayliga yangi bosqichlarda qo'shilgan sozlamalarni qo'shadi.
+ * Foydalanuvchi o'zgartirgan qiymatlarga tegilmaydi: faqat yo'q yoki bo'sh kalitlar to'ldiriladi.
+ */
+function addMissingKeys(file, values) {
+  let content = readFileSync(file, 'utf8');
+  const current = parseEnv(content);
+  const added = [];
+  const appended = [];
+  for (const [key, value] of Object.entries(values)) {
+    if (current[key]) continue;
+    const line = new RegExp(`^${key}=.*$`, 'm');
+    if (line.test(content)) {
+      if (!value) continue;
+      content = content.replace(line, () => `${key}=${value}`);
+    } else {
+      appended.push(`${key}=${value}`);
+    }
+    added.push(key);
+  }
+  if (appended.length > 0) {
+    const eol = content.includes('\r\n') ? '\r\n' : '\n';
+    const separator = content.endsWith('\n') ? '' : eol;
+    content += `${separator}${eol}# Yangi sozlamalar (pnpm setup:local qo'shdi)${eol}${appended.join(eol)}${eol}`;
+  }
+  if (added.length > 0) writeFileSync(file, content);
+  return added;
+}
+
 function databaseUrlFrom(infra) {
   const user = encodeURIComponent(infra.POSTGRES_USER || 'santexgo');
   const password = encodeURIComponent(infra.POSTGRES_PASSWORD);
@@ -173,10 +212,9 @@ function ensureEnvFiles() {
       fillTemplate(ROOT_ENV_EXAMPLE, {
         POSTGRES_PASSWORD: secret(),
         REDIS_PASSWORD: secret(),
-        MEILI_MASTER_KEY: secret(),
       }),
     );
-    ok('.env yaratildi (baza, Redis va qidiruv uchun tasodifiy parollar bilan)');
+    ok('.env yaratildi (baza va Redis uchun tasodifiy parollar bilan)');
   }
 
   const infra = readEnv(ROOT_ENV);
@@ -188,7 +226,16 @@ function ensureEnvFiles() {
   }
 
   if (existsSync(API_ENV)) {
-    ok('apps/api/.env mavjud — o‘zgartirilmadi');
+    const added = addMissingKeys(API_ENV, {
+      AUTH_SECRET: secret(32),
+      REDIS_URL: redisUrlFrom(infra),
+      SMS_PROVIDER: 'console',
+    });
+    if (added.length > 0) {
+      ok(`apps/api/.env ga yangi sozlamalar qo‘shildi: ${added.join(', ')}`);
+    } else {
+      ok('apps/api/.env mavjud — o‘zgartirilmadi');
+    }
     checkDatabaseUrl(readEnv(API_ENV), infra);
   } else {
     result.adminPassword = readablePassword();
@@ -197,10 +244,26 @@ function ensureEnvFiles() {
       fillTemplate(API_ENV_EXAMPLE, {
         DATABASE_URL: databaseUrlFrom(infra),
         ADMIN_PASSWORD: result.adminPassword,
+        AUTH_SECRET: secret(32),
+        REDIS_URL: redisUrlFrom(infra),
       }),
     );
     result.adminPhone = readEnv(API_ENV).ADMIN_PHONE ?? null;
     ok('apps/api/.env yaratildi');
+  }
+
+  if (existsSync(WEB_ENV)) {
+    ok('apps/web/.env mavjud — o‘zgartirilmadi');
+  } else {
+    writeFileSync(WEB_ENV, readFileSync(WEB_ENV_EXAMPLE, 'utf8'));
+    ok('apps/web/.env yaratildi');
+  }
+
+  if (existsSync(ADMIN_ENV)) {
+    ok('apps/admin/.env mavjud — o‘zgartirilmadi');
+  } else {
+    writeFileSync(ADMIN_ENV, readFileSync(ADMIN_ENV_EXAMPLE, 'utf8'));
+    ok('apps/admin/.env yaratildi');
   }
   return result;
 }
@@ -243,12 +306,12 @@ function main() {
   step('Baza va xizmatlarni ishga tushirish');
   if (useDocker) {
     run(
-      `${COMPOSE} up -d --wait --wait-timeout 300`,
+      `${COMPOSE} up -d --wait --wait-timeout 300 --remove-orphans`,
       'Docker Desktop ochiq va internet bor ekanini tekshiring. "port is already allocated" ' +
         'xatosi chiqsa, kompyuterda boshqa PostgreSQL ishlayapti: .env da POSTGRES_PORT=5433 ' +
         'qiling va apps/api/.env dagi DATABASE_URL portini ham 5433 ga o‘zgartiring.',
     );
-    ok('PostgreSQL, Redis, Meilisearch va S3 ishlayapti');
+    ok('PostgreSQL va Redis ishlayapti');
   } else {
     note(
       'O‘tkazib yuborildi (--no-docker): baza apps/api/.env dagi DATABASE_URL bo‘yicha ishlatiladi',
@@ -269,8 +332,12 @@ function main() {
   );
 
   console.log(`\n${green(bold('✔ Hammasi tayyor!'))}\n`);
-  console.log(`  API’ni ishga tushirish:  ${bold('pnpm dev')}`);
-  console.log(`  So‘ng brauzerda oching:  ${cyan('http://localhost:4000/api/docs')}`);
+  console.log(`  Ishga tushirish:         ${bold('pnpm dev')}`);
+  console.log(`  So‘ng brauzerda oching:  ${cyan('http://localhost:3000')}  (sayt)`);
+  console.log(`                           ${cyan('http://localhost:3001')}  (admin panel)`);
+  console.log(
+    `                           ${cyan('http://localhost:4000/api/docs')}  (API hujjati)`,
+  );
   console.log(
     `  Bazani ko‘rish:          ${bold('pnpm db:studio')}  →  ${cyan('http://localhost:5555')}`,
   );

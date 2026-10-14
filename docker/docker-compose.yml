@@ -43,31 +43,12 @@ services:
     environment:
       REDIS_PASSWORD: ${REDIS_PASSWORD}
 
-  meilisearch:
-    image: getmeili/meilisearch:v1.54
-    restart: unless-stopped
-    environment:
-      MEILI_ENV: development
-      MEILI_MASTER_KEY: ${MEILI_MASTER_KEY:?MEILI_MASTER_KEY .env faylida berilishi shart}
-      MEILI_NO_ANALYTICS: 'true'
-    ports:
-      - '127.0.0.1:${MEILI_PORT:-7700}:7700'
-    volumes:
-      - meili_data:/meili_data
-    healthcheck:
-      test:
-        [
-          'CMD-SHELL',
-          'curl -sf http://localhost:7700/health || wget -qO- http://localhost:7700/health',
-        ]
-      interval: 10s
-      timeout: 5s
-      retries: 10
-
-  # S3-mos fayl saqlash (mahsulot rasmlari). Production'da Cloudflare R2 yoki boshqa S3 ishlatiladi.
-  # MinIO bepul Docker image'larini to'xtatgani uchun lokal muhitda SeaweedFS ishlatiladi.
+  # Ixtiyoriy: S3-mos fayl saqlashni lokal sinash uchun (standart holatda rasmlar diskda saqlanadi).
+  # Ishga tushirish: docker compose --profile s3 ... up -d  va apps/api/.env da STORAGE_DRIVER=s3.
+  # MinIO bepul Docker image'larini to'xtatgani uchun SeaweedFS ishlatiladi.
   seaweedfs:
     image: chrislusf/seaweedfs:4.48
+    profiles: ['s3']
     restart: unless-stopped
     command: server -dir=/data -s3 -s3.port=8333 -s3.config=/etc/seaweedfs/s3.json
     ports:
@@ -79,5 +60,4 @@ services:
 volumes:
   postgres_data:
   redis_data:
-  meili_data:
   seaweedfs_data:

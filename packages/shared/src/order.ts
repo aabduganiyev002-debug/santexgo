@@ -18,20 +18,39 @@ export const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {
 };
 
 /**
- * Ruxsat etilgan status o'tishlari. Status faqat oldinga yuradi;
- * yo'lga chiqqan (DELIVERING) buyurtmani bekor qilib bo'lmaydi.
+ * Ruxsat etilgan status o'tishlari (admin uchun). Status faqat oldinga yuradi va
+ * oraliq bosqichni o'tkazib yuborish mumkin (masalan, do'kondan olib ketishda
+ * "Tayyorlanmoqda" → "Yetkazildi"). Yo'lga chiqqan buyurtma bekor qilinsa
+ * (mijoz qabul qilmadi), mahsulot omborga qaytariladi.
  */
 export const ORDER_STATUS_TRANSITIONS: Record<OrderStatus, readonly OrderStatus[]> = {
-  RECEIVED: ['CONFIRMING', 'CANCELLED'],
-  CONFIRMING: ['PREPARING', 'CANCELLED'],
-  PREPARING: ['DELIVERING', 'CANCELLED'],
-  DELIVERING: ['DELIVERED'],
+  RECEIVED: ['CONFIRMING', 'PREPARING', 'DELIVERING', 'DELIVERED', 'CANCELLED'],
+  CONFIRMING: ['PREPARING', 'DELIVERING', 'DELIVERED', 'CANCELLED'],
+  PREPARING: ['DELIVERING', 'DELIVERED', 'CANCELLED'],
+  DELIVERING: ['DELIVERED', 'CANCELLED'],
   DELIVERED: [],
   CANCELLED: [],
 };
 
-/** Mijoz o'zi bekor qila oladigan statuslar. */
-export const CUSTOMER_CANCELLABLE_STATUSES: readonly OrderStatus[] = ['RECEIVED'];
+/** Mijoz o'zi bekor qila oladigan statuslar (buyurtma hali yig'ilmagan). */
+export const CUSTOMER_CANCELLABLE_STATUSES: readonly OrderStatus[] = ['RECEIVED', 'CONFIRMING'];
+
+/** Mijozga ko'rsatiladigan bosqichlar ketma-ketligi (bekor qilinganidan tashqari). */
+export const ORDER_STATUS_STEPS: readonly OrderStatus[] = [
+  'RECEIVED',
+  'CONFIRMING',
+  'PREPARING',
+  'DELIVERING',
+  'DELIVERED',
+];
+
+/** Hali yakunlanmagan (faol) buyurtma statuslari. */
+export const ACTIVE_ORDER_STATUSES: readonly OrderStatus[] = [
+  'RECEIVED',
+  'CONFIRMING',
+  'PREPARING',
+  'DELIVERING',
+];
 
 export function canTransitionOrderStatus(from: OrderStatus, to: OrderStatus): boolean {
   return ORDER_STATUS_TRANSITIONS[from].includes(to);
@@ -40,6 +59,14 @@ export function canTransitionOrderStatus(from: OrderStatus, to: OrderStatus): bo
 export function isFinalOrderStatus(status: OrderStatus): boolean {
   return ORDER_STATUS_TRANSITIONS[status].length === 0;
 }
+
+/** Bitta buyurtmaning eng katta summasi (so'm). Undan katta buyurtma operator orqali rasmiylashtiriladi. */
+export const MAX_ORDER_TOTAL = 2_000_000_000;
+/**
+ * Mijozda bir vaqtda tasdiqlanmagan buyurtmalar soni chegarasi: soxta buyurtmalar
+ * bilan ombordagi mahsulotni band qilib qo'yishdan himoya.
+ */
+export const MAX_PENDING_ORDERS = 5;
 
 export const ORDER_NUMBER_PREFIX = 'ORDER-';
 /** Birinchi buyurtma raqami (bazadagi sequence shu qiymatdan boshlanadi). */

@@ -1,6 +1,10 @@
 {
   "$schema": "https://turborepo.com/schema.json",
   "ui": "stream",
+  "globalDependencies": ["tsconfig.base.json"],
+  "futureFlags": {
+    "pruneIncludesGlobalFiles": true
+  },
   "globalPassThroughEnv": ["PRISMA_*", "DATABASE_URL", "NODE_ENV"],
   "tasks": {
     "build": {
@@ -18,6 +22,10 @@
       "dependsOn": ["^build"],
       "cache": false,
       "persistent": true
+    },
+    "test:e2e": {
+      "dependsOn": ["^build"],
+      "cache": false
     }
   }
 }
