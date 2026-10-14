@@ -86,8 +86,12 @@ export const envSchema = z
     S3_FORCE_PATH_STYLE: z.stringbool().default(false),
 
     // ── SMS ──
-    /** console — kod terminalga chiqadi (faqat lokal); eskiz — Eskiz.uz orqali haqiqiy SMS */
-    SMS_PROVIDER: z.enum(['console', 'eskiz']).default('console'),
+    /**
+     * console — kod terminalga chiqadi (faqat lokal); eskiz — Eskiz.uz orqali haqiqiy SMS;
+     * none — SMS xizmati hali ulanmagan: sayt va admin panel ishlaydi, lekin SMS kod talab
+     * qiladigan amallar (ro'yxatdan o'tish, parolni tiklash) vaqtincha ishlamaydi
+     */
+    SMS_PROVIDER: z.enum(['console', 'eskiz', 'none']).default('console'),
     SMS_SENDER: z.string().min(1).max(20).default('4546'),
     ESKIZ_EMAIL: optional(z.email()),
     ESKIZ_PASSWORD: optional(z.string().min(1)),
@@ -119,7 +123,8 @@ export const envSchema = z
       ctx.addIssue({
         code: 'custom',
         path: ['SMS_PROVIDER'],
-        message: 'production muhitida haqiqiy SMS provayder kerak (SMS_PROVIDER=eskiz)',
+        message:
+          'production muhitida SMS kodlar terminalga chiqmasligi kerak: SMS_PROVIDER=eskiz (yoki SMS hali ulanmagan bo‘lsa — none)',
       });
     }
   })

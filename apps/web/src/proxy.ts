@@ -1,4 +1,4 @@
-import { AUTH_COOKIES } from '@santexgo/shared';
+import { AUTH_HINT_COOKIE_NAMES } from '@santexgo/shared';
 import { nextWithCsp } from '@santexgo/ui/csp';
 import { type NextRequest, NextResponse } from 'next/server';
 
@@ -15,9 +15,13 @@ function isProtected(pathname: string): boolean {
  *    bu faqat ortiqcha yuklanish va miltillashning oldini oladi.
  * 2) Barcha sahifalarga har so'rovda yangi nonce bilan Content-Security-Policy.
  */
+function hasSessionHint(request: NextRequest): boolean {
+  return AUTH_HINT_COOKIE_NAMES.some((name) => request.cookies.get(name)?.value === '1');
+}
+
 export function proxy(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
-  if (isProtected(pathname) && request.cookies.get(AUTH_COOKIES.hint)?.value !== '1') {
+  if (isProtected(pathname) && !hasSessionHint(request)) {
     const login = new URL('/login', request.url);
     login.searchParams.set('next', `${pathname}${search}`);
     return NextResponse.redirect(login);

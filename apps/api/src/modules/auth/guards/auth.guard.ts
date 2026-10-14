@@ -3,7 +3,7 @@ import { Reflector } from '@nestjs/core';
 import type { Request } from 'express';
 import { IS_PUBLIC_KEY } from '../../../common/auth/decorators.js';
 import { ApiError } from '../../../common/errors/api-error.js';
-import { readAccessToken } from '../auth.cookies.js';
+import { AuthCookies } from '../auth.cookies.js';
 import { TokenService } from '../token.service.js';
 
 /**
@@ -16,6 +16,7 @@ export class AuthGuard implements CanActivate {
   constructor(
     private readonly reflector: Reflector,
     private readonly tokens: TokenService,
+    private readonly cookies: AuthCookies,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -27,7 +28,7 @@ export class AuthGuard implements CanActivate {
       ]) ?? false;
     const req = context.switchToHttp().getRequest<Request>();
 
-    const token = readAccessToken(req);
+    const token = this.cookies.readAccessToken(req);
     if (token) {
       try {
         req.user = await this.tokens.verifyAccessToken(token);

@@ -91,5 +91,9 @@ describe('validateEnv', () => {
   it('SMS provayder sozlamalarini tekshiradi', () => {
     expect(() => validateEnv({ ...base, SMS_PROVIDER: 'eskiz' })).toThrow(/ESKIZ_EMAIL/);
     expect(() => validateEnv({ ...base, NODE_ENV: 'production' })).toThrow(/SMS_PROVIDER/);
+    // Eskiz hali ulanmagan server: SMS'siz ishga tushadi
+    expect(validateEnv({ ...base, NODE_ENV: 'production', SMS_PROVIDER: 'none' })).toMatchObject({
+      SMS_PROVIDER: 'none',
+    });
   });
 });

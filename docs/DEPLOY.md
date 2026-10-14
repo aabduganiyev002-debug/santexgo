@@ -37,13 +37,19 @@ git pull && sh scripts/prod.sh deploy
 
 ## Tezkor o'rnatish — bitta buyruq
 
-Yangi Ubuntu 22.04 yoki 24.04 serverida hamma ishni bitta skript (`scripts/install.sh`) bajaradi. Oldindan kerak: server (2-bo'lim), DNS'da 3 ta A yozuv — `@`, `www`, `admin` server IP'siga (3-bo'lim) va Eskiz.uz akkaunti (5.2). Serverga kiring (`ssh root@SERVER_IP`) va bering:
+Yangi Ubuntu 22.04 yoki 24.04 serverida hamma ishni bitta skript (`scripts/install.sh`) bajaradi. Oldindan kerak faqat server (2-bo'lim). Domen (3-bo'lim) va Eskiz.uz akkaunti (5.2) bo'lsa — yaxshi, bo'lmasa ham bo'ladi:
+
+- **Domen bo'lmasa** — sayt bepul manzilda ochiladi: server IP'si nomning ichida, masalan `https://185-74-5-12.sslip.io` va admin panel `https://admin.185-74-5-12.sslip.io` (HTTPS bilan; DNS sozlash shart emas). Bu boshlash uchun: o'z domeningiz (`santexgo.uz`) mijozlarga ishonchliroq ko'rinadi va qidiruv tizimlarida yaxshiroq.
+- **Eskiz akkaunti bo'lmasa** — sayt SMS'siz ishga tushadi: katalog, admin panel, mahsulot qo'shish ishlaydi, lekin mijozlar ro'yxatdan o'ta olmaydi va parolni tiklay olmaydi, shuning uchun buyurtma ham bera olmaydi (ro'yxatdan o'tish sahifasida "do'konga qo'ng'iroq qiling" degan xabar chiqadi).
+- **Keyin ulash** — o'z domeni yoki Eskiz tayyor bo'lganda o'sha buyruqni qayta bering: skript ularni so'raydi (domen uchun avval DNS'da A yozuvlarni server IP'siga qarating). Boshqa sozlamalar, ma'lumotlar va admin o'zgarmaydi.
+
+Serverga kiring (`ssh root@SERVER_IP`; provayder panelidagi "Console" ham bo'ladi) va bering:
 
 ```
 curl -fsSL https://raw.githubusercontent.com/aabduganiyev002-debug/santexgo/main/scripts/install.sh -o install.sh && sudo sh install.sh
 ```
 
-Avval savollar (1–2 daqiqa): sayt domeni, admin panel domeni (Enter — `admin.<domen>`), email (HTTPS sertifikati xabarlari uchun), Eskiz email va paroli, admin telefon raqami va paroli (kamida 10 belgi, ikki marta). Parollar ekranda ko'rinmaydi. So'ng skript DNS'ni tekshiradi (A yozuvlar server IP'siga qaraganmi, AAAA yo'qmi — muammo bo'lsa, tushuntirib, davom etishni so'raydi) va `Boshlaymizmi?` deb so'raydi.
+Avval savollar (1–2 daqiqa): sayt domeni (yo'q bo'lsa — Enter, bepul manzil), admin panel domeni (Enter — `admin.<domen>`), email (HTTPS sertifikati xabarlari uchun), Eskiz email va paroli (yo'q bo'lsa — Enter), admin telefon raqami va paroli (kamida 10 belgi, ikki marta). Parollar ekranda ko'rinmaydi. So'ng skript DNS'ni tekshiradi (o'z domeni bo'lsa: A yozuvlar server IP'siga qaraganmi, AAAA yo'qmi — muammo bo'lsa, tushuntirib, davom etishni so'raydi) va `Boshlaymizmi?` deb so'raydi.
 
 Keyin hammasi avtomatik (15–40 daqiqa), bosqichlar `[3/9]` kabi raqamlanadi:
 
@@ -51,7 +57,7 @@ Keyin hammasi avtomatik (15–40 daqiqa), bosqichlar `[3/9]` kabi raqamlanadi:
 2. Firewall (4.5): avval joriy SSH porti, keyin 80 va 443 ochiladi — ulanish uzilmaydi.
 3. Docker (4.8) — o'rnatilmagan bo'lsa.
 4. Kod — `/opt/santexgo` papkasiga.
-5. `docker/.env.production` — parollar tasodifiy, Eskiz sozlamalari yozilgan (5.1–5.2).
+5. `docker/.env.production` — parollar tasodifiy, Eskiz sozlamalari yozilgan (5.1–5.2; Eskiz'siz — `SMS_PROVIDER=none`).
 6. `deploy`, `seed` va `admin` (5.3–5.5).
 
 Oxirida sayt va admin panel manzillari chiqadi. Keyingi qadamlar: do'konni sozlash (5.6), Eskiz shablonlari (5.2), tekshirish ro'yxati (5.7), serverdan tashqariga zaxira (7.3) va monitoring (8.4). SSH'ni himoyalash va alohida foydalanuvchi (4.3–4.4) — skript qilmaydi, o'zingiz bajaring.
@@ -62,7 +68,7 @@ Oxirida sayt va admin panel manzillari chiqadi. Keyingi qadamlar: do'konni sozla
 - `curl -fsSL <yuqoridagi havola> | sudo sh` ko'rinishi ham ishlaydi — savollar baribir terminaldan so'raladi.
 - Repozitoriy yopiq (private) bo'lsa, havola ishlamaydi: kodni 4.9-bo'limdagidek yuklab oling va loyiha papkasida `sudo sh scripts/install.sh` bering — skript o'sha papkani ishlatadi.
 
-**So'rovsiz** (masalan, avtomatlashtirishda): qiymatlar muhit o'zgaruvchilari bilan beriladi, berilganlari so'ralmaydi; terminal bo'lmasa, yetishmagan yoki noto'g'ri qiymat — xato. Bu usulda parollar buyruqlar tarixida qoladi.
+**So'rovsiz** (masalan, avtomatlashtirishda): qiymatlar muhit o'zgaruvchilari bilan beriladi, berilganlari so'ralmaydi; terminal bo'lmasa, yetishmagan yoki noto'g'ri qiymat — xato (`SITE_DOMAIN` berilmasa — bepul manzil, `ESKIZ_EMAIL` berilmasa — SMS'siz). Bu usulda parollar buyruqlar tarixida qoladi.
 
 ```
 sudo SITE_DOMAIN=santexgo.uz ACME_EMAIL=siz@example.com ESKIZ_EMAIL=siz@example.com \
@@ -352,7 +358,7 @@ nano docker/.env.production
 | `POSTGRES_PASSWORD`, `REDIS_PASSWORD`           | Baza va Redis parollari (faqat harf va raqam)                  | `init` yaratgan — **tegmang**             |
 | `AUTH_SECRET`                                   | Tokenlar va SMS kodlarni imzolash kaliti                       | `init` yaratgan — **tegmang**             |
 | `POSTGRES_DB`, `POSTGRES_USER`                  | Baza va foydalanuvchi nomi (`santexgo`)                        | Tegmang                                   |
-| `SMS_PROVIDER`, `ESKIZ_EMAIL`, `ESKIZ_PASSWORD` | Eskiz.uz SMS                                                   | **Majburiy** — pastga qarang              |
+| `SMS_PROVIDER`, `ESKIZ_EMAIL`, `ESKIZ_PASSWORD` | Eskiz.uz SMS                                                   | **Kerak** — pastga qarang                 |
 | `SMS_SENDER`                                    | Jo'natuvchi nomi yoki raqami (Eskiz'da tasdiqlangan)           | Standart `4546`                           |
 | `SMS_DAILY_LIMIT`                               | Bir kunda yuboriladigan SMS'lar chegarasi                      | Standart 2000                             |
 | `ORDER_SMS_ENABLED`                             | Buyurtma holati haqida mijozga SMS                             | `true` — shablonlar tasdiqlangandan keyin |
@@ -364,7 +370,7 @@ nano docker/.env.production
 
 Faylda yo'q, lekin qo'shish mumkin: `ACCESS_TOKEN_TTL_MINUTES` (standart 15, 1–60) va `REFRESH_TOKEN_TTL_DAYS` (standart 30, 1–180) — necha kundan keyin mijoz qayta kirishi kerak.
 
-**Eskiz SMS (majburiy).** Ro'yxatdan o'tish va parolni tiklash SMS kod bilan ishlaydi, shuning uchun production'da API Eskiz sozlamalarisiz ishga tushmaydi.
+**Eskiz SMS.** Ro'yxatdan o'tish va parolni tiklash SMS kod bilan ishlaydi, shuning uchun mijozlar buyurtma berishi uchun Eskiz kerak. Akkaunt hali tayyor bo'lmasa, saytni SMS'siz ishga tushirish mumkin: `SMS_PROVIDER=none` — katalog va admin panel ishlaydi, lekin mijozlar ro'yxatdan o'ta olmaydi (`deploy` oxirida ogohlantirish chiqadi). Eskiz tayyor bo'lgach: `SMS_PROVIDER=eskiz`, `ESKIZ_EMAIL`, `ESKIZ_PASSWORD` va `sh scripts/prod.sh start`.
 
 1. eskiz.uz'da ro'yxatdan o'ting, shartnoma tuzing va balansni to'ldiring.
 2. `ESKIZ_EMAIL` va `ESKIZ_PASSWORD` — Eskiz kabinetiga kirish email'i va paroli.
@@ -781,8 +787,8 @@ sh scripts/prod.sh start
 | ----------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `docker/.env.production yo'q. Avval: sh scripts/prod.sh init`                             | 5.1-qadam                                                                                                                                                                          |
 | `docker/.env.production allaqachon mavjud — ustiga yozilmaydi`                            | `init` bajarilgan — faylni `nano` bilan tahrirlang                                                                                                                                 |
-| `ESKIZ_EMAIL va ESKIZ_PASSWORD berilmagan`                                                | 5.2-qadam, Eskiz                                                                                                                                                                   |
-| `SMS_PROVIDER=... production'da ishlamaydi`                                               | `docker/.env.production` da `SMS_PROVIDER=eskiz` qiling (5.2)                                                                                                                      |
+| `ESKIZ_EMAIL va ESKIZ_PASSWORD berilmagan`                                                | 5.2-qadam, Eskiz (akkaunt hali yo'q bo'lsa — `SMS_PROVIDER=none`)                                                                                                                  |
+| `SMS_PROVIDER=... production'da ishlamaydi`                                               | `docker/.env.production` da `SMS_PROVIDER=eskiz` (yoki hozircha SMS'siz — `none`) qiling (5.2)                                                                                     |
 | `POSTGRES_PASSWORD va REDIS_PASSWORD faqat harf va raqamlardan iborat bo'lsin`            | Parolni `openssl rand -hex 24` bilan yarating (bazadagi parolni almashtirish — 9-bo'lim)                                                                                           |
 | `santexgo-api:... topilmadi` (`rollback`)                                                 | `sh scripts/prod.sh versions` dagi versiyalardan birini bering                                                                                                                     |
 | `permission denied ... docker.sock`                                                       | `sudo usermod -aG docker $USER`, serverdan chiqib qayta kiring                                                                                                                     |
