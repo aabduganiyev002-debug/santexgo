@@ -1,4 +1,4 @@
-import { AUTH_COOKIES } from '@santexgo/shared';
+import { AUTH_HINT_COOKIE_NAMES } from '@santexgo/shared';
 import { nextWithCsp } from '@santexgo/ui/csp';
 import { type NextRequest, NextResponse } from 'next/server';
 
@@ -15,9 +15,13 @@ function isPublic(pathname: string): boolean {
  *    API tekshiradi.
  * 2) Barcha sahifalarga har so'rovda yangi nonce bilan Content-Security-Policy.
  */
+function hasSessionHint(request: NextRequest): boolean {
+  return AUTH_HINT_COOKIE_NAMES.some((name) => request.cookies.get(name)?.value === '1');
+}
+
 export function proxy(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
-  if (!isPublic(pathname) && request.cookies.get(AUTH_COOKIES.hint)?.value !== '1') {
+  if (!isPublic(pathname) && !hasSessionHint(request)) {
     const login = new URL('/login', request.url);
     const next = `${pathname}${search}`;
     if (next !== '/') login.searchParams.set('next', next);

@@ -81,12 +81,15 @@ require_env() {
     [ -n "$(env_value "$key")" ] || die "$ENV_FILE: $key berilmagan"
   done
   [ "$(env_value AUTH_SECRET | wc -c)" -gt 32 ] || die "AUTH_SECRET kamida 32 belgi bo'lishi kerak"
-  # API production'da faqat haqiqiy SMS provayder bilan ishga tushadi
-  sms=$(env_value SMS_PROVIDER)
-  [ "${sms:-eskiz}" = eskiz ] ||
-    die "SMS_PROVIDER=$sms production'da ishlamaydi — SMS_PROVIDER=eskiz bo'lishi kerak"
-  [ -n "$(env_value ESKIZ_EMAIL)" ] && [ -n "$(env_value ESKIZ_PASSWORD)" ] ||
-    die "$ENV_FILE: ESKIZ_EMAIL va ESKIZ_PASSWORD berilmagan (SMS uchun Eskiz.uz akkaunti)"
+  # API production'da haqiqiy SMS provayder bilan yoki SMS'siz (none — Eskiz hali ulanmagan) ishlaydi
+  case "$(env_value SMS_PROVIDER)" in
+    eskiz | '')
+      [ -n "$(env_value ESKIZ_EMAIL)" ] && [ -n "$(env_value ESKIZ_PASSWORD)" ] ||
+        die "$ENV_FILE: ESKIZ_EMAIL va ESKIZ_PASSWORD berilmagan (SMS uchun Eskiz.uz akkaunti; hozircha SMS'siz: SMS_PROVIDER=none)"
+      ;;
+    none) ;;
+    *) die "SMS_PROVIDER=$(env_value SMS_PROVIDER) production'da ishlamaydi — eskiz (yoki hozircha SMS'siz: none)" ;;
+  esac
   case "$(env_value POSTGRES_PASSWORD)$(env_value REDIS_PASSWORD)" in
     *[!A-Za-z0-9]*) die "POSTGRES_PASSWORD va REDIS_PASSWORD faqat harf va raqamlardan iborat bo'lsin" ;;
   esac
@@ -199,6 +202,15 @@ cmd_deploy() {
   info "Tayyor (versiya $version):"
   info "  Sayt:        https://$(env_value SITE_DOMAIN)"
   info "  Admin panel: https://$(env_value ADMIN_DOMAIN)"
+  warn_sms_off
+}
+
+# SMS_PROVIDER=none: sayt ishlaydi, lekin mijozlar ro'yxatdan o'ta olmaydi (SMS kod yuborilmaydi)
+warn_sms_off() {
+  [ "$(env_value SMS_PROVIDER)" = none ] || return 0
+  printf '! %s\n' "SMS ulanmagan (SMS_PROVIDER=none): mijozlar ro'yxatdan o'ta olmaydi va parolni tiklay olmaydi." \
+    "  Eskiz akkaunti ochilgach: docker/.env.production da ESKIZ_EMAIL, ESKIZ_PASSWORD va SMS_PROVIDER=eskiz," \
+    "  keyin: sh scripts/prod.sh start (yoki o'rnatish buyrug'ini qayta bering — Eskiz so'raladi)" >&2
 }
 
 # Versiya tegini barcha image'lardan olib tashlash (yarim yoki hech qachon ishga tushmagan versiya

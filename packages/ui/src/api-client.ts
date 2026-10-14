@@ -1,6 +1,6 @@
 'use client';
 
-import { AUTH_COOKIES } from '@santexgo/shared';
+import { AUTH_HINT_COOKIE_NAMES } from '@santexgo/shared';
 import { ApiRequestError } from './api-errors';
 
 interface RequestOptions {
@@ -13,7 +13,9 @@ interface RequestOptions {
 
 /** Kirgan foydalanuvchi belgisi (maxfiy emas — faqat UI uchun). */
 export function hasSessionHint(): boolean {
-  return typeof document !== 'undefined' && document.cookie.includes(`${AUTH_COOKIES.hint}=1`);
+  if (typeof document === 'undefined') return false;
+  const cookies = document.cookie.split('; ');
+  return AUTH_HINT_COOKIE_NAMES.some((name) => cookies.includes(`${name}=1`));
 }
 
 let refreshing: Promise<boolean> | null = null;

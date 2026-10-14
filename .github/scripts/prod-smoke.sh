@@ -265,6 +265,13 @@ expect_status 200 "Admin API (kirgan holda)" -b "$JAR" \
 expect_body '"products"' "Admin API (kirgan holda)"
 ok "Admin sifatida kirish ($ADMIN_PHONE): /api/v1/admin/stats/overview — 200"
 
+# HTTPS'da auth cookie'lari __Host- prefiksi bilan: qo'shni subdomendagi sayt (masalan, bepul
+# manzil *.sslip.io da) ularni o'rnata yoki almashtira olmaydi. Cookie jar: 6-ustun — nom
+jar_names=$(grep -v '^# ' "$JAR" | awk -F '\t' 'NF >= 7 { print $6 }' | sort | tr '\n' ' ')
+[ "$jar_names" = "__Host-sg_at __Host-sg_auth __Host-sg_rt " ] ||
+  fail "Auth cookie'lari kutilganidek emas: $jar_names (kutilgan: __Host-sg_at __Host-sg_auth __Host-sg_rt)"
+ok "Auth cookie'lari: __Host-sg_at, __Host-sg_rt, __Host-sg_auth (Secure, Path=/, Domain'siz)"
+
 # Begona saytdan cookie bilan kelgan so'rov rad etiladi. Tanasi noto'g'ri ({}): himoya
 # ishlamay qolsa ham hech narsa yaratilmaydi (400)
 expect_status 403 "CSRF: begona saytdan so'rov" -b "$JAR" -X POST \

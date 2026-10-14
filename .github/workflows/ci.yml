@@ -381,8 +381,9 @@ jobs:
           sh scripts/prod.sh compose logs --no-color --tail 100
 
   # Toza serverdagi kabi: scripts/install.sh kodni GitHub'dan o'zi yuklab oladi (checkout'dan faqat
-  # o'rnatuvchi fayli olinadi) va butun stack'ni bitta buyruq bilan ishga tushiradi. Ikkinchi
-  # marta — yangilash rejimi (git pull + deploy, sozlamalar va admin o'zgarmaydi)
+  # o'rnatuvchi va uning sinovi olinadi) va butun stack'ni bitta buyruq bilan ishga tushiradi —
+  # avval Eskiz'siz (SMS keyin ulanadi). Ikkinchi marta — yangilash rejimi va Eskiz'ni ulash
+  # (git pull + deploy; boshqa sozlamalar va admin o'zgarmaydi)
   installer:
     name: "O'rnatuvchi: toza serverda bitta buyruq bilan"
     runs-on: ubuntu-latest
@@ -407,8 +408,13 @@ jobs:
     steps:
       - uses: actions/checkout@v6
         with:
-          sparse-checkout: scripts/install.sh
+          sparse-checkout: |
+            scripts/install.sh
+            .github/scripts/install-unit.sh
           sparse-checkout-cone-mode: false
+
+      - name: Domensiz bepul manzil, o'z domeniga o'tish va Eskiz'siz rejim (funksiyalar)
+        run: dash .github/scripts/install-unit.sh
 
       - name: Noto'g'ri ishga tushirish darhol rad etiladi (root'siz, noto'g'ri qiymatlar)
         run: |
@@ -425,25 +431,37 @@ jobs:
           done
           test ! -e /opt/santexgo
 
-      - name: Birinchi o'rnatish (sudo sh install.sh)
-        run: sudo -E sh scripts/install.sh
+      # Eskiz akkaunti hali yo'q: sayt SMS'siz ishga tushadi
+      - name: Birinchi o'rnatish, Eskiz'siz (sudo sh install.sh)
+        shell: bash
+        run: |
+          log=$RUNNER_TEMP/install-1.log
+          sudo -E env -u ESKIZ_EMAIL -u ESKIZ_PASSWORD sh scripts/install.sh 2>&1 | tee "$log"
+          grep -q 'SMS ulanmagan' "$log"
 
-      - name: Kod shu commit'dan, sozlamalar fayli (600), Eskiz paroli konteynerda o'zgarmagan
+      - name: Kod shu commit'dan, sozlamalar fayli (600), SMS'siz ro'yxatdan o'tish — tushunarli xato
         working-directory: /opt/santexgo
         env:
           EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         run: |
           test "$(sudo git rev-parse HEAD)" = "$EXPECTED_SHA"
           test "$(sudo stat -c '%a %U' docker/.env.production)" = '600 root'
-          sudo grep -qxF "ESKIZ_PASSWORD='$ESKIZ_PASSWORD'" docker/.env.production
           sudo grep -qx 'SEED_SAMPLE_PRODUCTS=true' docker/.env.production
-          test "$(sudo sh scripts/prod.sh compose exec -T api printenv ESKIZ_PASSWORD)" = "$ESKIZ_PASSWORD"
+          sudo grep -qx 'SMS_PROVIDER=none' docker/.env.production
+          test "$(sudo sh scripts/prod.sh compose exec -T api printenv SMS_PROVIDER)" = none
+          body=$RUNNER_TEMP/send-code.json
+          code=$(curl -sk -o "$body" -w '%{http_code}' --resolve "$SITE_DOMAIN:443:127.0.0.1" \
+            -X POST -H "Origin: https://$SITE_DOMAIN" -H 'Content-Type: application/json' \
+            --data '{"phone":"+998901112244"}' "https://$SITE_DOMAIN/api/v1/auth/register/send-code")
+          cat "$body"; echo
+          test "$code" = 503
+          grep -q '"code":"SMS_SEND_FAILED"' "$body"
 
       - name: Smoke test (Caddy orqali HTTPS)
         working-directory: /opt/santexgo
         run: sudo sh .github/scripts/prod-smoke.sh
 
-      - name: Ikkinchi marta — yangilash rejimi (git pull + deploy)
+      - name: Ikkinchi marta — yangilash rejimi va Eskiz'ni ulash (git pull + deploy)
         shell: bash
         run: |
           log=$RUNNER_TEMP/install-2.log
@@ -451,7 +469,16 @@ jobs:
           grep -q 'Rejim: yangilash' "$log"
           grep -q 'Migratsiyalardan oldin zaxira nusxa olinmoqda' "$log"
           grep -q 'Admin akkaunt allaqachon bor' "$log"
+          if grep -q 'SMS ulanmagan' "$log"; then echo "✖ Eskiz ulanmadi"; exit 1; fi
           test "$(sudo sh /opt/santexgo/scripts/prod.sh versions | wc -l)" -ge 2
+
+      - name: Eskiz ulandi — paroli sozlamalar faylida va konteynerda o'zgarmagan
+        working-directory: /opt/santexgo
+        run: |
+          sudo grep -qx 'SMS_PROVIDER=eskiz' docker/.env.production
+          sudo grep -qxF "ESKIZ_PASSWORD='$ESKIZ_PASSWORD'" docker/.env.production
+          test "$(sudo sh scripts/prod.sh compose exec -T api printenv SMS_PROVIDER)" = eskiz
+          test "$(sudo sh scripts/prod.sh compose exec -T api printenv ESKIZ_PASSWORD)" = "$ESKIZ_PASSWORD"
 
       - name: Yangilashdan keyin smoke test
         working-directory: /opt/santexgo

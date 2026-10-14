@@ -8,11 +8,16 @@
 # "sh scripts/prod.sh deploy | seed | admin". Qayta ishga tushirish xavfsiz: o'rnatilgan serverda
 # faqat yangilaydi (git pull + deploy), mavjud sozlamalar qayta so'ralmaydi.
 #
+# Domen bo'lmasa — sayt bepul manzilda ochiladi: <server IP>.sslip.io (HTTPS bilan). Eskiz.uz
+# akkaunti bo'lmasa — sayt SMS'siz ishga tushadi (mijozlar ro'yxatdan o'ta olmaydi). Ikkalasini
+# ham keyin ulash mumkin: o'rnatish buyrug'ini qayta berish kifoya — domen va Eskiz so'raladi.
+#
 # So'rovsiz ishga tushirish — qiymatlar muhit o'zgaruvchilarida (berilganlari so'ralmaydi):
 #   sudo SITE_DOMAIN=santexgo.uz ACME_EMAIL=... ESKIZ_EMAIL=... ESKIZ_PASSWORD=... \
 #     ADMIN_PHONE=+998901234567 ADMIN_PASSWORD=... sh install.sh
-# Ixtiyoriy: ADMIN_DOMAIN (admin.<domen>), INSTALL_DIR (/opt/santexgo), SANTEXGO_REPO,
-#   SANTEXGO_BRANCH (main), SEED_SAMPLE_PRODUCTS (false), SKIP_FIREWALL=1, SKIP_DNS_CHECK=1
+# Ixtiyoriy: SITE_DOMAIN (yo'q — bepul manzil), ADMIN_DOMAIN (admin.<domen>), ESKIZ_EMAIL va
+#   ESKIZ_PASSWORD (yo'q — SMS'siz), INSTALL_DIR (/opt/santexgo), SANTEXGO_REPO, SANTEXGO_BRANCH
+#   (main), SEED_SAMPLE_PRODUCTS (false), SKIP_FIREWALL=1, SKIP_DNS_CHECK=1
 #
 # Qo'llanma: docs/DEPLOY.md ("Tezkor o'rnatish — bitta buyruq")
 set -eu
@@ -24,6 +29,8 @@ INSTALL_URL=https://raw.githubusercontent.com/aabduganiyev002-debug/santexgo/mai
 DOCS_URL=https://github.com/aabduganiyev002-debug/santexgo/blob/main/docs/DEPLOY.md
 # docker/docker-compose.prod.yml dagi "name:" — konteyner va hajm nomlari shundan boshlanadi
 PROJECT=santexgo-prod
+# Bepul manzillar: <IP, nuqtalar o'rniga chiziqcha>.sslip.io — DNS javobi nomdagi IP (sslip.io)
+FREE_DOMAIN_SUFFIX=sslip.io
 TOTAL_STEPS=9
 MIN_PASSWORD_LENGTH=10
 DOMAIN_RE='^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$'
@@ -36,6 +43,7 @@ CR=$(printf '\r')
 STEP=0
 STEP_TITLE=
 INTERACTIVE=0
+SMS_OFF=0
 ASKED=0
 ECHO_OFF=0
 TMP_DIR=
@@ -134,6 +142,27 @@ input() {
         die "$2 berilmagan (so'rovsiz rejimda uni muhit o'zgaruvchisi sifatida bering)"
       ask "$4" "${5:-}"
       value=$answer
+    fi
+    if result=$("$3" "$value"); then
+      eval "$1=\$result"
+      return 0
+    fi
+    [ "$INTERACTIVE" = 1 ] || die "$2: $result"
+    note "$result"
+    value=
+  done
+}
+
+# input_optional <o'zgaruvchi> <muhit nomi> <tekshiruv> <savol> — input kabi, lekin bo'sh qoldirish
+# mumkin (Enter yoki muhit o'zgaruvchisi berilmagan): unda 1 qaytaradi
+input_optional() {
+  eval "value=\${$1}"
+  while :; do
+    if [ -z "$value" ]; then
+      [ "$INTERACTIVE" = 1 ] || return 1
+      ask "$4"
+      value=$(trim "$answer")
+      [ -n "$value" ] || return 1
     fi
     if result=$("$3" "$value"); then
       eval "$1=\$result"
@@ -394,6 +423,19 @@ public_ipv4() {
   return 1
 }
 
+# Bepul manzil: server IP'si nomning ichida (185.74.5.12 → 185-74-5-12.sslip.io). sslip.io DNS'i
+# shu IP'ni qaytaradi — domen sotib olish va DNS sozlash shart emas; HTTPS sertifikatini Caddy
+# odatdagidek oladi. www.<manzil> va admin.<manzil> ham shu IP'ga ochiladi
+free_domain() {
+  ip=$(public_ipv4) || return 1
+  printf '%s.%s' "$(printf '%s' "$ip" | tr . -)" "$FREE_DOMAIN_SUFFIX"
+}
+
+is_free_domain() {
+  case "$1" in *."$FREE_DOMAIN_SUFFIX") return 0 ;; esac
+  return 1
+}
+
 # dns_lookup <nom> <A|AAAA> — avval Google DNS (HTTPS orqali: server keshi va /etc/hosts ta'sir
 # qilmaydi, Let's Encrypt ko'radigan holatga yaqin), bo'lmasa — tizim resolver'i
 dns_lookup() {
@@ -417,6 +459,10 @@ check_dns() {
       return 0
       ;;
   esac
+  if is_free_domain "$site"; then
+    ok "$site — bepul manzil, DNS sozlash shart emas"
+    return 0
+  fi
   if ! command -v curl > /dev/null 2>&1; then
     note "curl yo'q — DNS tekshirilmadi"
     return 0
@@ -534,19 +580,70 @@ script_checkout() {
   printf '%s\n' "$dir"
 }
 
+# Sayt va admin panel domenlari. Domen bo'lmasa — bepul manzil (<IP>.sslip.io). Bepul manzildagi
+# saytga qayta ishga tushirishda o'z domenini ulash mumkin; o'z domeni sozlamalar faylida bo'lsa —
+# o'zgartirilmaydi (boshqa domenga o'tish: DEPLOY.md, 6.2)
+collect_domains() {
+  file_site=$(env_get SITE_DOMAIN)
+  if [ -n "$file_site" ] && ! is_free_domain "$file_site"; then
+    from_file site SITE_DOMAIN
+    from_file admin_domain ADMIN_DOMAIN && return 0
+    input admin_domain ADMIN_DOMAIN v_admin_domain "Admin panel domeni" "admin.$site"
+    write_keys="$write_keys ADMIN_DOMAIN"
+    return 0
+  fi
+
+  if [ -z "$site" ] && [ "$INTERACTIVE" = 1 ]; then
+    if [ -n "$file_site" ]; then
+      info "Sayt hozir bepul manzilda: https://$file_site"
+      info "O'z domeningizni ulash uchun uni kiriting (oldin DNS'da @, www va admin A yozuvlarini"
+      info "server IP'siga qarating — DEPLOY.md, 3-bo'lim)."
+      ask "Domen (bepul manzilda qolish — Enter)"
+    else
+      info "Domeningiz (masalan: santexgo.uz) bo'lmasa, Enter bosing — sayt bepul manzilda ochiladi."
+      info "O'z domeningizni keyin ulash mumkin: o'rnatish buyrug'ini qayta berish kifoya."
+      ask "Sayt domeni (domen yo'q — Enter)"
+    fi
+    site=$answer
+  fi
+  while :; do
+    if [ -z "$(trim "$site")" ]; then
+      if site=$(free_domain); then break; fi
+      [ "$INTERACTIVE" = 1 ] ||
+        die "Serverning tashqi IP manzilini aniqlab bo'lmadi — bepul manzil berib bo'lmaydi. SITE_DOMAIN bering (masalan: santexgo.uz)"
+      note "Serverning tashqi IP manzilini aniqlab bo'lmadi — bepul manzil berib bo'lmaydi"
+      ask "Sayt domeni (masalan: santexgo.uz)"
+      site=$answer
+      continue
+    fi
+    if result=$(v_site_domain "$site"); then
+      site=$result
+      break
+    fi
+    [ "$INTERACTIVE" = 1 ] || die "SITE_DOMAIN: $result"
+    note "$result"
+    ask "Sayt domeni (domen yo'q — Enter)"
+    site=$answer
+  done
+
+  if is_free_domain "$site"; then
+    admin_domain=admin.$site
+    if is_free_domain "$file_site" && [ "$site" != "$file_site" ]; then
+      note "Server IP manzili o'zgargan — yangi bepul manzil: $site"
+    fi
+  else
+    input admin_domain ADMIN_DOMAIN v_admin_domain "Admin panel domeni" "admin.$site"
+  fi
+  [ "$site" = "$file_site" ] || write_keys="$write_keys SITE_DOMAIN"
+  [ "$admin_domain" = "$(env_get ADMIN_DOMAIN)" ] || write_keys="$write_keys ADMIN_DOMAIN"
+}
+
 collect_inputs() {
   # Sozlamalar faylida bor qiymatlar qayta so'ralmaydi; yo'qlari so'raladi va faylga yoziladi
   write_keys=
-  for key in SITE_DOMAIN ADMIN_DOMAIN ACME_EMAIL ESKIZ_EMAIL ESKIZ_PASSWORD; do
+  collect_domains
+  for key in ACME_EMAIL ESKIZ_EMAIL ESKIZ_PASSWORD; do
     case "$key" in
-      SITE_DOMAIN)
-        from_file site "$key" && continue
-        input site "$key" v_site_domain "Sayt domeni (masalan: santexgo.uz)"
-        ;;
-      ADMIN_DOMAIN)
-        from_file admin_domain "$key" && continue
-        input admin_domain "$key" v_admin_domain "Admin panel domeni" "admin.$site"
-        ;;
       ACME_EMAIL)
         from_file acme_email "$key" && continue
         input acme_email "$key" v_email "Email (HTTPS sertifikati xabarlari uchun)"
@@ -555,17 +652,25 @@ collect_inputs() {
         from_file eskiz_email "$key" && continue
         if [ "$INTERACTIVE" = 1 ] && [ -z "$eskiz_email" ]; then
           info "Eskiz.uz — SMS xizmati (ro'yxatdan o'tish va parol tiklash kodlari)."
-          info "Eskiz kabinetiga kirish email'i va paroli kerak:"
+          info "Akkaunt hali yo'q bo'lsa, Enter bosing: sayt SMS'siz ishga tushadi (mijozlar"
+          info "ro'yxatdan o'ta olmaydi), Eskiz'ni keyin o'rnatish buyrug'ini qayta berib ulaysiz."
         fi
-        input eskiz_email "$key" v_email "Eskiz email"
+        if ! input_optional eskiz_email "$key" v_email "Eskiz email (hozircha yo'q — Enter)"; then
+          SMS_OFF=1
+          continue
+        fi
         ;;
       ESKIZ_PASSWORD)
+        [ "$SMS_OFF" = 0 ] || continue
         from_file eskiz_password "$key" && continue
         input_secret eskiz_password "$key" v_file_secret "Eskiz paroli (ekranda ko'rinmaydi)"
         ;;
     esac
     write_keys="$write_keys $key"
   done
+  # Eskiz bo'lmasa — SMS'siz (API production'da Eskiz'siz faqat shunday ishga tushadi)
+  if [ "$SMS_OFF" = 1 ]; then sms_provider=none; else sms_provider=eskiz; fi
+  [ "$(env_get SMS_PROVIDER)" = "$sms_provider" ] || write_keys="$write_keys SMS_PROVIDER"
 
   if from_file sample_products SEED_SAMPLE_PRODUCTS; then
     :
@@ -603,10 +708,18 @@ input_admin() {
 show_summary() {
   say ""
   say "${B}Sozlamalar:${N}"
-  info "Sayt:           https://$site"
+  if is_free_domain "$site"; then
+    info "Sayt:           https://$site (bepul manzil)"
+  else
+    info "Sayt:           https://$site"
+  fi
   info "Admin panel:    https://$admin_domain"
   info "Email (HTTPS):  $acme_email"
-  info "Eskiz SMS:      $eskiz_email (parol yashirin)"
+  if [ "$SMS_OFF" = 1 ]; then
+    info "Eskiz SMS:      ulanmagan — keyin ulanadi (shu paytgacha mijozlar ro'yxatdan o'ta olmaydi)"
+  else
+    info "Eskiz SMS:      $eskiz_email (parol yashirin)"
+  fi
   case "$admin" in
     yes) info "Admin:          mavjud akkaunt (o'zgartirilmaydi)" ;;
     *) if [ -n "$admin_phone" ]; then info "Admin:          $admin_phone"; fi ;;
@@ -820,9 +933,11 @@ write_config() {
       ESKIZ_EMAIL) env_put "$key" "'$eskiz_email'" ;;
       ESKIZ_PASSWORD) env_put "$key" "'$eskiz_password'" ;;
       SEED_SAMPLE_PRODUCTS) env_put "$key" "$sample_products" ;;
+      SMS_PROVIDER) env_put "$key" "$sms_provider" ;;
     esac
   done
-  [ "$(env_get ESKIZ_PASSWORD)" = "$eskiz_password" ] && [ "$(env_get SITE_DOMAIN)" = "$site" ] ||
+  { [ "$SMS_OFF" = 1 ] || [ "$(env_get ESKIZ_PASSWORD)" = "$eskiz_password" ]; } &&
+    [ "$(env_get SITE_DOMAIN)" = "$site" ] && [ "$(env_get SMS_PROVIDER)" = "$sms_provider" ] ||
     die "docker/.env.production ga yozilgan qiymatlar kiritilganiga mos emas — faylni tekshiring"
   chmod 600 "$env_file"
   if [ "$repo_owner" != root ]; then chown "$repo_owner" "$env_file"; fi
@@ -872,10 +987,24 @@ finish() {
     info "Admin login:   $admin_phone (parol — o'rnatishda kiritilgan)"
   fi
   info "$https_line"
+  if is_free_domain "$site"; then
+    say ""
+    note "Sayt bepul manzilda. O'z domeningizni ulash: DNS'da @, www va admin A yozuvlarini"
+    info "  server IP'siga qarating va o'rnatish buyrug'ini qayta bering — domen so'raladi."
+  fi
+  if [ "$SMS_OFF" = 1 ]; then
+    say ""
+    note "SMS ulanmagan: mijozlar ro'yxatdan o'ta olmaydi, shuning uchun buyurtma ham bera olmaydi."
+    info "  Eskiz.uz akkaunti ochilgach, o'rnatish buyrug'ini qayta bering — Eskiz so'raladi."
+  fi
   say ""
   say "${B}Keyingi qadamlar:${N}"
   info "1. Admin panelga kiring: Sozlamalar, Brendlar, Mahsulotlar (DEPLOY.md, 5.6)"
-  info "2. Eskiz kabinetida SMS matnlarini shablon sifatida tasdiqlating (DEPLOY.md, 5.2)"
+  if [ "$SMS_OFF" = 1 ]; then
+    info "2. Eskiz.uz akkaunti oching va SMS matnlarini shablon sifatida tasdiqlating (DEPLOY.md, 5.2)"
+  else
+    info "2. Eskiz kabinetida SMS matnlarini shablon sifatida tasdiqlating (DEPLOY.md, 5.2)"
+  fi
   info "3. Zaxira nusxalarni serverdan tashqariga ko'chirishni sozlang (DEPLOY.md, 7.3)"
   info "4. Tashqi monitoring sozlang (DEPLOY.md, 8.4)"
   say ""
@@ -928,6 +1057,8 @@ SantexGo'ni serverga o'rnatadi yoki o'rnatilganini yangilaydi. Argumentlar yo'q 
 so'raladi yoki muhit o'zgaruvchilaridan olinadi: SITE_DOMAIN, ADMIN_DOMAIN, ACME_EMAIL,
 ESKIZ_EMAIL, ESKIZ_PASSWORD, ADMIN_PHONE, ADMIN_PASSWORD, INSTALL_DIR, SANTEXGO_REPO,
 SANTEXGO_BRANCH, SEED_SAMPLE_PRODUCTS, SKIP_FIREWALL=1, SKIP_DNS_CHECK=1.
+Domen bo'lmasa — bepul manzil (<server IP>.sslip.io); Eskiz bo'lmasa — SMS'siz. Ikkalasini ham
+keyin ulash mumkin: buyruqni qayta bering.
 Qo'llanma: $DOCS_URL
 EOF
 }
@@ -950,11 +1081,12 @@ main() {
 
   say "${B}SantexGo — serverga o'rnatish${N}"
   say "Sayt, admin panel, API, baza va zaxira nusxalar shu serverga HTTPS bilan o'rnatiladi:"
-  info "• avval bir nechta savol: domen, email, Eskiz SMS, admin akkaunt (1–2 daqiqa);"
+  info "• avval bir nechta savol: domen, email, Eskiz SMS, admin akkaunt (1–2 daqiqa;"
+  info "  domen va Eskiz bo'lmasa — Enter, keyin ulanadi);"
   info "• keyin hammasi avtomatik (15–40 daqiqa): tizim yangilanishlari, swap, firewall,"
   info "  Docker, kod, build va ishga tushirish."
-  say "Oldindan: domenning A yozuvlari (@, www, admin) shu server IP'siga qaratilgan bo'lsin va"
-  say "Eskiz.uz akkaunti tayyor bo'lsin. Qayta ishga tushirish xavfsiz — o'rnatilgan serverni yangilaydi."
+  say "Domen bo'lsa: uning A yozuvlari (@, www, admin) shu server IP'siga qaratilgan bo'lsin."
+  say "Qayta ishga tushirish xavfsiz — o'rnatilgan serverni yangilaydi."
   say ""
 
   [ "$(id -u)" = 0 ] || die "Root huquqi kerak — sudo bilan ishga tushiring: $(rerun_command)"

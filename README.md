@@ -67,7 +67,7 @@ Serverga (Ubuntu 24.04 VPS) o'rnatish, yangilash, zaxira nusxalar va muammolarni
 
 Bitta serverda Docker Compose bilan: Caddy (avtomatik HTTPS), sayt, admin panel, API, PostgreSQL, Redis va kunlik backup.
 
-**Bitta buyruq bilan** (toza Ubuntu 22.04/24.04 yoki Debian 12 server, DNS sozlangan bo'lsa) — domen, email, Eskiz va admin so'raladi, qolgani avtomatik: tizim yangilanishlari, swap, firewall, Docker, kod, sozlamalar, build, HTTPS, seed va admin akkaunt. Qayta berilsa — yangilaydi:
+**Bitta buyruq bilan** (toza Ubuntu 22.04/24.04 yoki Debian 12 server) — domen, email, Eskiz va admin so'raladi, qolgani avtomatik: tizim yangilanishlari, swap, firewall, Docker, kod, sozlamalar, build, HTTPS, seed va admin akkaunt. Domen bo'lmasa — sayt bepul manzilda (`<server IP>.sslip.io`) ochiladi; Eskiz bo'lmasa — SMS'siz ishga tushadi. Qayta berilsa — yangilaydi va yetishmaganini (domen, Eskiz) ulaydi:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/aabduganiyev002-debug/santexgo/main/scripts/install.sh -o install.sh && sudo sh install.sh
