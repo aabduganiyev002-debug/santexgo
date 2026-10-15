@@ -152,10 +152,18 @@ command -v jq > /dev/null || fail "jq o'rnatilmagan"
 wait_for "https://$SITE/api/health" '"status":"ok"' "API sog'lig'i (Caddy orqali)"
 ok "API, baza va Redis ishlayapti: https://$SITE/api/health"
 
+# Sog'lomlik tekshiruvi hali bajarilmagan konteyner ("starting") kutiladi: masalan, backup
+# birinchi zaxirani olib bo'lgach "healthy" bo'ladi (deploy uni kutmaydi)
+deadline=$(($(date +%s) + WAIT_SECONDS))
 for service in postgres redis api web admin backup; do
-  health=$(sh scripts/prod.sh compose ps --format '{{.Health}}' "$service")
-  [ "$health" = healthy ] ||
-    fail "Konteyner \"$service\": \"${health:-ishlamayapti}\" (kutilgan: healthy)"
+  while :; do
+    health=$(sh scripts/prod.sh compose ps --format '{{.Health}}' "$service")
+    [ "$health" != healthy ] || break
+    if [ "$health" != starting ] || [ "$(date +%s)" -ge "$deadline" ]; then
+      fail "Konteyner \"$service\": \"${health:-ishlamayapti}\" (kutilgan: healthy)"
+    fi
+    sleep 2
+  done
 done
 state=$(sh scripts/prod.sh compose ps --format '{{.State}}' caddy)
 [ "$state" = running ] || fail "Konteyner \"caddy\": \"${state:-ishlamayapti}\" (kutilgan: running)"
