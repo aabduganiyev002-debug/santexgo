@@ -12,7 +12,7 @@ Hech narsa o'rnatish shart emas — Node.js, baza (PostgreSQL) va tayyor sayt bi
 2. ZIP'ni o'ng tugma bilan bosing — **Extract All** (Hammasini chiqarish), masalan `C:\SantexGo` papkasiga (yo'lda lotin bo'lmagan harflar bo'lmasin).
 3. Papkadagi **`SantexGo.bat`** ni ikki marta bosing. Windows ogohlantirsa — **Run** (yoki **More info** → **Run anyway**).
 
-Birinchi marta 1–2 daqiqa: baza yaratiladi, katalog va namunaviy mahsulotlar yoziladi. Keyin brauzerda sayt (http://localhost:3000) va admin panel (http://localhost:3001) ochiladi. Admin telefon raqami va paroli papkadagi `ADMIN-KIRISH.txt` faylida. O'z raqamingiz va parolingizni qo'yish uchun saytga shu raqam va parol bilan kiring, keyin "Profil va xavfsizlik" (http://localhost:3000/account/profile): yangi raqamga SMS kod qora oynada chiqadi.
+Birinchi marta 1–2 daqiqa: baza yaratiladi, katalog va namunaviy mahsulotlar yoziladi. Keyin brauzerda sayt (http://localhost:3000) va admin panel (http://localhost:3001) ochiladi. Admin telefon raqami va paroli papkadagi `ADMIN-KIRISH.txt` faylida. O'z raqamingiz va parolingizni qo'yish (yoki parolni unutgan bo'lsangiz): papkadagi `Admin-sozlash.bat` ni bosing — raqam va yangi parolni yozasiz, keyin SantexGo o'zi ishga tushadi.
 
 - To'xtatish: qora oynani yoping (yoki `SantexGo-toxtatish.bat`). Keyingi safar yana `SantexGo.bat` — qo'shgan ma'lumotlaringiz `data` papkasida saqlanadi.
 - SMS kodlar (ro'yxatdan o'tish) haqiqiy SMS bo'lib ketmaydi — qora oynada ko'rsatiladi.

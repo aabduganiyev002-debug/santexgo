@@ -2,20 +2,22 @@
 // Hech narsa o'rnatish shart emas — Node.js va PostgreSQL paketning ichida.
 //
 // Paket tuzilishi (scripts/windows/build-package.mjs yig'adi):
-//   SantexGo.bat, SantexGo-toxtatish.bat, YORIQNOMA.txt
+//   SantexGo.bat, SantexGo-toxtatish.bat, Admin-sozlash.bat, YORIQNOMA.txt
 //   app/node        — Node.js           app/pgsql — PostgreSQL (bin, lib, share)
 //   app/api         — API (build + bog'liqliklar, migratsiyalar, seed)
 //   app/web         — sayt (Next.js standalone)    app/admin — admin panel
 //   app/launcher    — shu fayl
 //   data/           — birinchi ishga tushirishda yaratiladi: baza, rasmlar, loglar, sozlamalar
 //
-// Buyruqlar: node launcher.mjs start | stop
+// Buyruqlar: node launcher.mjs start | stop | admin (raqam va parolni so'rab, keyin start)
 // Sinov (CI) uchun: SANTEXGO_NO_BROWSER=1 — brauzer ochilmaydi
 import { spawn, spawnSync } from 'node:child_process';
 import { randomBytes, randomInt } from 'node:crypto';
 import fs from 'node:fs';
 import net from 'node:net';
 import path from 'node:path';
+import readline from 'node:readline';
+import { pathToFileURL } from 'node:url';
 
 const IS_WIN = process.platform === 'win32';
 const ROOT = path.resolve(import.meta.dirname, '..', '..');
@@ -73,10 +75,11 @@ function writeJson(file, value) {
 }
 
 /** Buyruqni bajaradi; xato bo'lsa — chiqishining oxiri bilan LaunchError */
-function run(command, args, { cwd = ROOT, env = process.env, what } = {}) {
+function run(command, args, { cwd = ROOT, env = process.env, what, input } = {}) {
   const result = spawnSync(command, args, {
     cwd,
     env,
+    input,
     encoding: 'utf8',
     windowsHide: true,
     maxBuffer: 64 * 1024 * 1024,
@@ -204,8 +207,7 @@ function writeAdminFile(settings, loginUnchanged) {
     ? [`Telefon:     ${formatPhone(settings.adminPhone)}`, `Parol:       ${settings.adminPassword}`]
     : [
         "Telefon raqam yoki parol saytda o'zgartirilgan - o'zingiz qo'ygan raqam va parol",
-        "bilan kiring. Parolni unutgan bo'lsangiz:",
-        `${SITE_URL}/forgot-password (SMS kod qora oynada chiqadi).`,
+        "bilan kiring. Unutgan bo'lsangiz: shu papkadagi Admin-sozlash.bat ni bosing.",
       ];
   const lines = [
     'SantexGo - admin panelga kirish',
@@ -215,8 +217,8 @@ function writeAdminFile(settings, loginUnchanged) {
     '',
     `Sayt:        ${SITE_URL}`,
     '',
-    "Telefon raqam va parolni o'zgartirish: saytga admin raqami va paroli bilan kiring,",
-    `keyin ${SITE_URL}/account/profile ("Profil va xavfsizlik").`,
+    "Telefon raqam va parolni o'zgartirish (yoki unutilgan parolni tiklash): shu papkadagi",
+    'Admin-sozlash.bat ni bosing - raqam va yangi parolni yozasiz.',
     '',
     'Bu fayl faqat shu kompyuterdagi sinov nusxasi uchun. Uni boshqalarga bermang.',
   ];
@@ -495,6 +497,30 @@ async function shutdown(code) {
 
 // ─────────────────────────────── Buyruqlar ───────────────────────────────
 
+/**
+ * Portlar bo'sh bo'lishi kerak (masalan, SantexGo'ning boshqa papkadagi nusxasi ishlamasin).
+ * waitSeconds — hozirgina to'xtatilgan jarayonlar portlarni bo'shatishini kutish.
+ */
+async function ensurePortsFree(ports, waitSeconds = 0) {
+  // Baza porti — shu papkadagi baza ishlamayotgan bo'lsa (aks holda uni o'zi band qilgan)
+  const all = postgresRunning() ? ports : [...ports, DB.port];
+  const deadline = Date.now() + waitSeconds * 1000;
+  for (;;) {
+    const busy = [];
+    for (const port of all) {
+      if (await portInUse(port)) busy.push(port);
+    }
+    if (busy.length === 0) return;
+    if (Date.now() >= deadline) {
+      fail(
+        `Port band: ${busy.join(', ')} - boshqa dastur ishlatyapti (masalan, SantexGo'ning boshqa\n` +
+          "    nusxasi yoki 'pnpm dev'). Uni yoping yoki kompyuterni qayta ishga tushiring.",
+      );
+    }
+    await new Promise((resolve) => setTimeout(resolve, 500));
+  }
+}
+
 async function alreadyRunning() {
   const state = readJson(RUN_FILE);
   if (!state) return false;
@@ -536,17 +562,7 @@ async function start() {
     return;
   }
 
-  // Portlar bo'sh bo'lishi kerak (masalan, SantexGo'ning boshqa nusxasi ishlamasin)
-  const busy = [];
-  for (const port of [PORTS.web, PORTS.admin, PORTS.api]) {
-    if (await portInUse(port)) busy.push(port);
-  }
-  if (busy.length > 0) {
-    fail(
-      `Port band: ${busy.join(', ')} - boshqa dastur ishlatyapti (masalan, SantexGo'ning boshqa\n` +
-        "    nusxasi yoki 'pnpm dev'). Uni yoping yoki kompyuterni qayta ishga tushiring.",
-    );
-  }
+  await ensurePortsFree([PORTS.web, PORTS.admin, PORTS.api]);
 
   const settings = loadSettings();
   if (!fs.existsSync(path.join(PGDATA, 'PG_VERSION'))) initDatabase(settings);
@@ -611,7 +627,7 @@ async function start() {
     say(`                 (ADMIN-KIRISH.txt faylida ham yozilgan)`);
   } else {
     say("   Admin login:  saytda o'zingiz o'zgartirgan telefon raqam va parol");
-    say(`                 (parolni unutgan bo'lsangiz: ${SITE_URL}/forgot-password)`);
+    say("                 (unutgan bo'lsangiz: shu papkadagi Admin-sozlash.bat)");
   }
   say('');
   say("   SMS kodlar (ro'yxatdan o'tish, parol tiklash) shu oynada chiqadi -");
@@ -635,6 +651,122 @@ function stop() {
   say(state || wasRunning ? "  SantexGo to'xtatildi." : '  SantexGo ishlamayotgan edi.');
 }
 
+// ─────────────────────────── Admin-sozlash.bat ───────────────────────────
+
+/** Saytdagi qoida: 9 ta raqam (998 bilan — 12 ta) → +998XXXXXXXXX */
+function normalizePhone(input) {
+  const digits = input.replace(/\D/g, '');
+  const local = digits.length === 12 && digits.startsWith('998') ? digits.slice(3) : digits;
+  return /^[1-9]\d{8}$/.test(local) ? `+998${local}` : null;
+}
+
+/** Saytdagi qoida: 8–128 belgi, kamida bitta harf va bitta raqam */
+function passwordProblem(password) {
+  if (password.length < 8) return "Parol kamida 8 belgidan iborat bo'lsin.";
+  if (password.length > 128) return 'Parol 128 belgidan oshmasin.';
+  if (!/\p{L}/u.test(password) || !/\d/.test(password)) {
+    return "Parolda kamida bitta harf va bitta raqam bo'lsin.";
+  }
+  return null;
+}
+
+async function ask(lines, question) {
+  process.stdout.write(question);
+  const { value, done } = await lines.next();
+  if (done) fail('Javob kiritilmadi. Admin-sozlash.bat ni qayta bosing.');
+  return value.trim();
+}
+
+/**
+ * Raqam va parol bazaga: yangi raqam egasi bo'lsa (masalan, saytda ro'yxatdan o'tgan) — o'sha
+ * admin qilinadi, aks holda birinchi admin. Shu akkauntning barcha sessiyalari yopiladi.
+ */
+async function saveAdminLogin(settings, phone, password) {
+  // Sayt bilan bir xil xesh (argon2id, o'sha parametrlar) — API'ning o'z moduli
+  const passwordModule = path.join(API_DIR, 'dist', 'common', 'security', 'password.js');
+  const { hashPassword } = await import(pathToFileURL(passwordModule).href);
+  const sql = `
+WITH target AS (
+  SELECT COALESCE(
+    (SELECT id FROM users WHERE phone = :'phone'),
+    (SELECT id FROM users WHERE role = 'ADMIN' ORDER BY phone = :'old_phone' DESC, created_at LIMIT 1)
+  ) AS id
+), updated AS (
+  UPDATE users
+  SET phone = :'phone', password_hash = :'hash', role = 'ADMIN', is_active = true,
+      phone_verified_at = COALESCE(phone_verified_at, now()), password_changed_at = NULL,
+      updated_at = now()
+  WHERE id = (SELECT id FROM target)
+  RETURNING id
+), revoked AS (
+  UPDATE sessions SET revoked_at = now()
+  WHERE user_id IN (SELECT id FROM updated) AND revoked_at IS NULL
+)
+SELECT count(*) FROM updated;
+`;
+  const updated = run(
+    exe('psql'),
+    [
+      ...['-h', DB.host, '-p', String(DB.port), '-U', DB.user, '-d', DB.name],
+      ...['-X', '-q', '-t', '-A', '-v', 'ON_ERROR_STOP=1'],
+      ...['-v', `phone=${phone}`, '-v', `old_phone=${settings.adminPhone}`],
+      ...['-v', `hash=${await hashPassword(password)}`],
+    ],
+    { env: pgEnv(settings), input: sql, what: 'Admin akkauntini yangilash (psql)' },
+  ).trim();
+  if (updated !== '1') fail('Admin akkaunt topilmadi.');
+  settings.adminPhone = phone;
+  settings.adminPassword = password;
+  writeJson(SETTINGS_FILE, settings);
+}
+
+/** Admin telefon raqami va parolini so'raydi va o'rnatadi (unutilgan parolni tiklash ham shu) */
+async function setupAdmin() {
+  say('');
+  say('  ==============================================');
+  say('    SantexGo - admin telefon raqami va paroli');
+  say('  ==============================================');
+  checkLocation();
+  for (const dir of [DATA, LOGS, UPLOADS]) fs.mkdirSync(dir, { recursive: true });
+
+  // Ishlab turgan bo'lsa — to'xtatiladi; oxirida o'zi qayta ishga tushadi
+  const wasRunning = Boolean(readJson(RUN_FILE)) || postgresRunning();
+  if (wasRunning) stop();
+  await ensurePortsFree([PORTS.web, PORTS.admin, PORTS.api], wasRunning ? 30 : 0);
+
+  say('');
+  say('  Admin panelga shu raqam va parol bilan kirasiz.');
+  const rl = readline.createInterface({ input: process.stdin, terminal: false });
+  const lines = rl[Symbol.asyncIterator]();
+  let phone = null;
+  while (!phone) {
+    phone = normalizePhone(await ask(lines, '  Telefon raqam (masalan, 90 123 45 67): '));
+    if (!phone) say("  Raqam noto'g'ri: 9 ta raqam yozing, masalan 90 123 45 67.");
+  }
+  let password = null;
+  while (!password) {
+    const answer = await ask(lines, '  Yangi parol (kamida 8 belgi, harf va raqam): ');
+    const problem = passwordProblem(answer);
+    if (problem) say(`  ${problem}`);
+    else password = answer;
+  }
+  rl.close();
+  say('');
+
+  const settings = loadSettings();
+  if (!fs.existsSync(path.join(PGDATA, 'PG_VERSION'))) initDatabase(settings);
+  startPostgres(settings);
+  try {
+    ensureDatabase(settings);
+    migrate(settings);
+    seed(settings);
+    await saveAdminLogin(settings, phone, password);
+  } finally {
+    stopPostgres();
+  }
+  ok(`Admin login o'rnatildi: ${formatPhone(phone)}   parol: ${password}`);
+}
+
 // ─────────────────────────────── Ishga tushirish ───────────────────────────────
 
 const command = process.argv[2] ?? 'start';
@@ -647,14 +779,17 @@ try {
     stop();
   } else if (command === 'start') {
     await start();
+  } else if (command === 'admin') {
+    await setupAdmin();
+    await start();
   } else {
-    fail(`Noma'lum buyruq: ${command} (start | stop)`);
+    fail(`Noma'lum buyruq: ${command} (start | stop | admin)`);
   }
 } catch (error) {
   const message = error instanceof LaunchError ? error.message : (error?.stack ?? String(error));
   console.error(`\n  XATO: ${message}\n`);
   console.error("  Muammo hal bo'lmasa, shu oynadagi matnni to'liq nusxalab yuboring.");
-  if (command === 'start') {
+  if (command !== 'stop') {
     await shutdown(1);
   }
   process.exit(1);

@@ -50,7 +50,12 @@ fs.mkdirSync(APP, { recursive: true });
 
 // ── Ishga tushirish fayllari ──
 step('Ishga tushirish fayllari');
-for (const file of ['SantexGo.bat', 'SantexGo-toxtatish.bat', 'YORIQNOMA.txt']) {
+for (const file of [
+  'SantexGo.bat',
+  'SantexGo-toxtatish.bat',
+  'Admin-sozlash.bat',
+  'YORIQNOMA.txt',
+]) {
   fs.copyFileSync(path.join(REPO, 'scripts', 'windows', 'package', file), path.join(OUT, file));
 }
 fs.mkdirSync(path.join(APP, 'launcher'));

@@ -2,6 +2,7 @@
 // sayt, admin panel, API, rasm yuklash va SMS kodni tekshiradi, admin telefon raqami va parolini
 // saytda o'zgartiradi, SantexGo-toxtatish.bat bilan to'xtatadi; keyin ikkinchi marta (baza va
 // ma'lumotlar saqlangan holda) ishga tushiradi: eski parol ko'rsatilmaydi, yangisi bilan kiriladi.
+// Uchinchi marta Admin-sozlash.bat: raqam va parol oynada so'raladi, keyin SantexGo ishga tushadi.
 //   node scripts/windows/test-package.mjs <ZIP ochilgan SantexGo papkasi>
 import { spawn, spawnSync } from 'node:child_process';
 import fs from 'node:fs';
@@ -17,6 +18,13 @@ const ADMIN = 'http://127.0.0.1:3001';
 const API = 'http://127.0.0.1:4000';
 const PORTS = [3000, 3001, 4000, 54329];
 const NEW_ADMIN = { phone: '+998901112255', password: 'Yangi-admin-parol-1' };
+// Admin-sozlash.bat ga foydalanuvchi kabi yoziladi (avval noto'g'ri raqam va qisqa parol)
+const SETUP_ADMIN = {
+  input: '123\n93 555 44 33\nqisqa\nSinov2026ok\n',
+  phone: '+998935554433',
+  shown: '+998 93 555 44 33',
+  password: 'Sinov2026ok',
+};
 // 16x16 PNG
 const PNG = Buffer.from(
   'iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAIAAACQkWg2AAAAFklEQVR42mO46SFPEmIY1TCqYfhqAADZxkAQ7D8XygAAAABJRU5ErkJggg==',
@@ -47,16 +55,17 @@ function readLog(file) {
   }
 }
 
-async function start(run) {
+async function start(run, { file = 'SantexGo.bat', action = 'start', input } = {}) {
   const logFile = path.join(LOG_DIR, `ishga-tushirish-${run}.log`);
   const out = fs.openSync(logFile, 'w');
-  const [command, args] = bat('SantexGo.bat', 'start');
+  const [command, args] = bat(file, action);
   const child = spawn(command, args, {
     cwd: DIR,
     env,
-    stdio: ['ignore', out, out],
+    stdio: [input ? 'pipe' : 'ignore', out, out],
     windowsHide: true,
   });
+  if (input) child.stdin.end(input);
   let exited = null;
   child.on('exit', (code) => (exited = code ?? -1));
   const startedAt = Date.now();
@@ -288,6 +297,40 @@ async function checkChangedAdminLogin(started) {
   ok("O'zgartirilgan admin login: eski parol ko'rsatilmaydi, yangisi bilan kiriladi");
 }
 
+/** Admin-sozlash.bat: noto'g'ri javoblar qayta so'raladi, yangi login o'rnatiladi, eskisi ishlamaydi */
+async function checkSetupAdmin(started) {
+  const log = readLog(started.logFile);
+  if (!log.includes("Raqam noto'g'ri") || !log.includes('Parol kamida 8 belgidan')) {
+    fail("Admin-sozlash: noto'g'ri raqam yoki qisqa parol qayta so'ralmadi");
+  }
+  if (!log.includes(`Admin login:  ${SETUP_ADMIN.shown}   parol: ${SETUP_ADMIN.password}`)) {
+    fail("Admin-sozlash: oynada yangi admin login ko'rsatilmadi");
+  }
+  const adminFile = fs.readFileSync(path.join(DIR, 'ADMIN-KIRISH.txt'), 'utf8');
+  if (!adminFile.includes(SETUP_ADMIN.shown) || !adminFile.includes(SETUP_ADMIN.password)) {
+    fail(`ADMIN-KIRISH.txt yangilanmagan:\n${adminFile}`);
+  }
+  const headers = { origin: 'http://localhost:3001', 'content-type': 'application/json' };
+  const login = await expectStatus(
+    'Admin-sozlash: yangi login',
+    200,
+    `${ADMIN}/api/v1/auth/login`,
+    {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ phone: SETUP_ADMIN.phone, password: SETUP_ADMIN.password }),
+    },
+  );
+  const { user } = await login.json();
+  if (user?.role !== 'ADMIN') fail(`Kirgan foydalanuvchi admin emas: ${user?.role}`);
+  await expectStatus('Admin-sozlash: eski login', 401, `${ADMIN}/api/v1/auth/login`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(NEW_ADMIN),
+  });
+  ok("Admin-sozlash.bat: raqam va parol o'rnatildi, eski login endi ishlamaydi");
+}
+
 function printLogs() {
   for (const file of fs.readdirSync(LOG_DIR)) {
     console.log(`\n── ${file} ──\n${readLog(path.join(LOG_DIR, file))}`);
@@ -318,6 +361,14 @@ try {
     'PLT-PPR-PN20-25',
   );
   await stop(2, second);
+
+  const third = await start(3, {
+    file: 'Admin-sozlash.bat',
+    action: 'admin',
+    input: SETUP_ADMIN.input,
+  });
+  await checkSetupAdmin(third);
+  await stop(3, third);
   console.log('\n✔ Windows paketi sinovi muvaffaqiyatli');
 } catch (error) {
   console.error(`\n✖ ${error.message}`);
