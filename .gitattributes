@@ -6,6 +6,8 @@
 # cmd.exe faqat LF bo'lgan .bat faylni noto'g'ri o'qiydi (goto o'z yorlig'ini topolmay qoladi)
 *.bat text eol=crlf
 *.cmd text eol=crlf
+# Windows paketidagi yo'riqnoma (Bloknot uchun)
+scripts/windows/package/*.txt text eol=crlf
 
 *.png binary
 *.jpg binary

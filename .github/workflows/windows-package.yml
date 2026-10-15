@@ -1,0 +1,125 @@
+# Windows uchun tayyor paket: bitta ZIP — ochib, SantexGo.bat ni ikki marta bosish kifoya
+# (Node.js, PostgreSQL va build qilingan sayt ichida; hech narsa o'rnatish shart emas).
+# Har safar ZIP foydalanuvchi kabi ochilib sinaladi. main'da — GitHub Releases'ga chiqariladi:
+#   https://github.com/<repo>/releases/latest/download/SantexGo-Windows.zip
+name: Windows paketi
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    paths:
+      - 'apps/**'
+      - 'packages/**'
+      - 'scripts/windows/**'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - '.github/workflows/windows-package.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: windows-package-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  TURBO_TELEMETRY_DISABLED: 1
+  NEXT_TELEMETRY_DISABLED: 1
+  CHECKPOINT_DISABLE: 1
+
+jobs:
+  package:
+    name: "Yig'ish va sinash (Windows)"
+    runs-on: windows-latest
+    timeout-minutes: 60
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      # Paketda symlink bo'lmasligi kerak (Windows ZIP'ni ochganda ularni tiklamaydi):
+      # bog'liqliklar npm kabi tekis (hoisted) o'rnatiladi
+      - name: Bog'liqliklar
+        run: pnpm install --frozen-lockfile --config.node-linker=hoisted
+
+      - name: Build — API, sayt va admin panel (localhost uchun)
+        env:
+          NEXT_PUBLIC_SITE_URL: http://localhost:3000
+        run: pnpm turbo run build --filter=@santexgo/api --filter=@santexgo/web --filter=@santexgo/admin
+
+      - name: Seed (boshlang'ich ma'lumotlar) — JavaScript'ga
+        run: pnpm --filter @santexgo/api build:seed
+
+      - name: API — faqat production bog'liqliklar
+        run: pnpm --config.node-linker=hoisted --filter @santexgo/api deploy --prod --legacy "$env:RUNNER_TEMP\api-deploy"
+
+      - name: Paketni yig'ish (PostgreSQL — runner'da o'rnatilganidan)
+        run: |
+          $pgRoot = if ($env:PGROOT) { $env:PGROOT } else { Split-Path $env:PGBIN }
+          & "$pgRoot\bin\postgres.exe" --version
+          node scripts/windows/build-package.mjs --out "$env:RUNNER_TEMP\pkg" --api-deploy "$env:RUNNER_TEMP\api-deploy" --pg-root $pgRoot
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: ZIP
+        working-directory: ${{ runner.temp }}\pkg
+        run: |
+          7z a -tzip -mx=7 -bso0 -bsp0 SantexGo-Windows.zip SantexGo
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          "{0:N0} MB" -f ((Get-Item SantexGo-Windows.zip).Length / 1MB)
+
+      - name: Sinov — ZIP'ni ochib, foydalanuvchi kabi ishga tushirish va to'xtatish (ikki marta)
+        timeout-minutes: 25
+        run: |
+          $test = Join-Path $env:RUNNER_TEMP 'sinov'
+          7z x -bso0 -bsp0 "-o$test" "$env:RUNNER_TEMP\pkg\SantexGo-Windows.zip"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          node scripts/windows/test-package.mjs (Join-Path $test 'SantexGo')
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: SantexGo-Windows
+          path: ${{ runner.temp }}\pkg\SantexGo-Windows.zip
+          retention-days: 7
+          compression-level: 0
+
+      # Oxirgi 3 ta versiya qoladi; havola doim eng yangisiga: releases/latest/download/SantexGo-Windows.zip
+      - name: GitHub Releases'ga chiqarish
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          $stamp = (Get-Date).ToUniversalTime()
+          $tag = 'windows-{0}-{1}' -f $stamp.ToString('yyyyMMdd-HHmm'), $env:GITHUB_SHA.Substring(0, 7)
+          $notes = @"
+          Kompyuterda (Windows 10/11, 64-bit) ishga tushirish uchun tayyor paket.
+
+          1. **SantexGo-Windows.zip** ni yuklab oling.
+          2. ZIP'ni o'ng tugma bilan bosing — **Extract All**, masalan ``C:\SantexGo`` ga.
+          3. Papkadagi **SantexGo.bat** ni ikki marta bosing.
+
+          Node.js, Docker yoki boshqa dastur o'rnatish shart emas. Birinchi ishga tushirish 1–2 daqiqa;
+          keyin brauzerda sayt (http://localhost:3000) va admin panel (http://localhost:3001) ochiladi.
+          Admin login va parol — papkadagi ``ADMIN-KIRISH.txt`` faylida. Batafsil: ``YORIQNOMA.txt``.
+
+          Bu nusxa faqat shu kompyuterda ishlaydi. Internetdagi sayt uchun: docs/DEPLOY.md.
+          "@
+          gh release create $tag "$env:RUNNER_TEMP\pkg\SantexGo-Windows.zip" --target $env:GITHUB_SHA --latest `
+            --title ('SantexGo — Windows paketi ({0})' -f $stamp.ToString('dd.MM.yyyy HH:mm')) --notes $notes
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $old = gh release list --limit 100 --json tagName,createdAt `
+            --jq '[.[] | select(.tagName | startswith("windows-"))] | sort_by(.createdAt) | reverse | .[3:] | .[].tagName'
+          foreach ($name in $old) {
+            if ($name) { gh release delete $name --cleanup-tag --yes }
+          }

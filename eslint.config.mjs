@@ -15,6 +15,7 @@ export default defineConfig(
   globalIgnores([
     '**/node_modules/**',
     '**/dist/**',
+    '**/dist-seed/**',
     '**/.next/**',
     '**/.turbo/**',
     '**/coverage/**',

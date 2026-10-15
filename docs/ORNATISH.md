@@ -4,7 +4,24 @@ Birinchi o'rnatish taxminan 30–40 daqiqa oladi (ko'p qismi dasturlarni yuklab 
 
 Kompyuterga talablar: Windows 10/11 (64-bit) yoki macOS, kamida 8 GB operativ xotira, 10 GB bo'sh joy, internet.
 
-## Eng oson yo'l: ikki marta bosish (Windows)
+## Eng oson yo'l: tayyor paket (Windows)
+
+Hech narsa o'rnatish shart emas — Node.js, baza (PostgreSQL) va tayyor sayt bitta ZIP faylda.
+
+1. **[SantexGo-Windows.zip](https://github.com/aabduganiyev002-debug/santexgo/releases/latest/download/SantexGo-Windows.zip)** ni yuklab oling.
+2. ZIP'ni o'ng tugma bilan bosing — **Extract All** (Hammasini chiqarish), masalan `C:\SantexGo` papkasiga (yo'lda lotin bo'lmagan harflar bo'lmasin).
+3. Papkadagi **`SantexGo.bat`** ni ikki marta bosing. Windows ogohlantirsa — **Run** (yoki **More info** → **Run anyway**).
+
+Birinchi marta 1–2 daqiqa: baza yaratiladi, katalog va namunaviy mahsulotlar yoziladi. Keyin brauzerda sayt (http://localhost:3000) va admin panel (http://localhost:3001) ochiladi. Admin telefon raqami va paroli papkadagi `ADMIN-KIRISH.txt` faylida.
+
+- To'xtatish: qora oynani yoping (yoki `SantexGo-toxtatish.bat`). Keyingi safar yana `SantexGo.bat` — qo'shgan ma'lumotlaringiz `data` papkasida saqlanadi.
+- SMS kodlar (ro'yxatdan o'tish) haqiqiy SMS bo'lib ketmaydi — qora oynada ko'rsatiladi.
+- Yangi versiyaga o'tish: yangi ZIP'ni oching va eski papkadagi `data` papkasini yangi papkaga ko'chiring.
+- Bu nusxa faqat shu kompyuterda ishlaydi; internetdagi sayt uchun — [DEPLOY.md](DEPLOY.md) ("Tezkor o'rnatish — bitta buyruq").
+
+## Kod bilan ishlash: ikki marta bosish (Windows)
+
+Kodni o'zgartirmoqchi bo'lsangiz (dasturchilar uchun) — kod va dasturlar bilan:
 
 1. 1-qadamdagi dasturlarni o'rnating va 2-qadamdagidek kodni yuklab oling.
 2. Loyiha papkasida (masalan `Documents\santexgo`) **`SantexGo-ishga-tushirish.bat`** faylini ikki marta bosing.

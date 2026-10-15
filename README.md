@@ -26,7 +26,9 @@ Platforma qanday tuzilgani (arxitektura, baza, mijoz/admin/buyurtma/chegirma jar
 
 Kompyuterda birinchi marta ishga tushirish bo'yicha qadamma-qadam qo'llanma (Windows va Mac): **[docs/ORNATISH.md](docs/ORNATISH.md)**.
 
-Windows'da eng oson yo'l: loyiha papkasidagi **`SantexGo-ishga-tushirish.bat`** ni ikki marta bosing — Node.js va Docker'ni tekshiradi, pnpm'ni o'rnatadi, `pnpm setup:local` ni bajaradi, serverni ishga tushirib, sayt va admin panelni brauzerda ochadi. To'xtatish: **`SantexGo-toxtatish.bat`**.
+Windows'da eng oson yo'l — tayyor paket: **[SantexGo-Windows.zip](https://github.com/aabduganiyev002-debug/santexgo/releases/latest/download/SantexGo-Windows.zip)** ni yuklab oling, oching va `SantexGo.bat` ni ikki marta bosing (Node.js, baza va tayyor sayt ichida — hech narsa o'rnatish shart emas; [docs/ORNATISH.md](docs/ORNATISH.md)). Paketni `.github/workflows/windows-package.yml` yig'adi, sinaydi va GitHub Releases'ga chiqaradi.
+
+Kod bilan ishlash uchun (Windows): loyiha papkasidagi **`SantexGo-ishga-tushirish.bat`** ni ikki marta bosing — Node.js va Docker'ni tekshiradi, pnpm'ni o'rnatadi, `pnpm setup:local` ni bajaradi, serverni ishga tushirib, sayt va admin panelni brauzerda ochadi. To'xtatish: **`SantexGo-toxtatish.bat`**.
 
 Qisqacha (Node.js 22.12+, pnpm 10 va Docker Desktop o'rnatilgan bo'lsa):
 
