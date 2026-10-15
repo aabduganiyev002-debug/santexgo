@@ -117,7 +117,8 @@ jobs:
 
           Node.js, Docker yoki boshqa dastur o'rnatish shart emas. Birinchi ishga tushirish 1–2 daqiqa;
           keyin brauzerda sayt (http://localhost:3000) va admin panel (http://localhost:3001) ochiladi.
-          Admin login va parol — papkadagi ``ADMIN-KIRISH.txt`` faylida. Batafsil: ``YORIQNOMA.txt``.
+          Admin login va parol — papkadagi ``ADMIN-KIRISH.txt`` faylida. O'z raqamingiz va parolingizni
+          qo'yish (yoki parolni tiklash): ``Admin-sozlash.bat``. Batafsil: ``YORIQNOMA.txt``.
 
           Bu nusxa faqat shu kompyuterda ishlaydi. Internetdagi sayt uchun: docs/DEPLOY.md.
           "@
