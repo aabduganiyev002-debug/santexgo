@@ -80,11 +80,19 @@ if (IS_WIN) {
   }
 }
 
+// Ishlash uchun kerak bo'lmagan fayllar: TypeScript tiplari, source map'lar, .bin havolalari.
+// Tiplar ayniqsa uzun yo'llarda (masalan, @aws-sdk/*/dist-types/...) — Windows 260 belgi chegarasi
+const devOnly = /\.d\.[cm]?ts$|\.map$|(^|\/)(dist-types|node_modules\/\.bin)(\/|$)/;
+
 // ── API: build, migratsiyalar, seed va production bog'liqliklar ──
 step('API');
 const apiSkip =
-  /^(src|test|docker|uploads|\.turbo)(\/|$)|^(Dockerfile|nest-cli\.json|vitest[^/]*|tsconfig[^/]*\.json)$|(^|\/)node_modules\/\.bin(\/|$)|\.map$/;
-copy(values['api-deploy'], path.join(APP, 'api'), (rel) => !apiSkip.test(rel));
+  /^(src|test|docker|uploads|\.turbo)(\/|$)|^(Dockerfile|nest-cli\.json|vitest[^/]*|tsconfig[^/]*\.json)$/;
+copy(
+  values['api-deploy'],
+  path.join(APP, 'api'),
+  (rel) => !apiSkip.test(rel) && !devOnly.test(rel),
+);
 const seedSource = path.join(REPO, 'apps', 'api', 'dist-seed');
 if (!fs.existsSync(path.join(APP, 'api', 'dist-seed')))
   copy(seedSource, path.join(APP, 'api', 'dist-seed'));
@@ -94,7 +102,7 @@ for (const name of ['web', 'admin']) {
   step(name === 'web' ? 'Sayt' : 'Admin panel');
   const source = path.join(REPO, 'apps', name);
   const target = path.join(APP, name);
-  copy(path.join(source, '.next', 'standalone'), target);
+  copy(path.join(source, '.next', 'standalone'), target, (rel) => !devOnly.test(rel));
   copy(path.join(source, '.next', 'static'), path.join(target, 'apps', name, '.next', 'static'));
   if (fs.existsSync(path.join(source, 'public'))) {
     copy(path.join(source, 'public'), path.join(target, 'apps', name, 'public'));
