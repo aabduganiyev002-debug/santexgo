@@ -1,0 +1,32 @@
+SantexGo - kompyuterda ishga tushirish (Windows 10/11, 64-bit)
+================================================================
+
+Hech narsa o'rnatish shart emas: Node.js va PostgreSQL shu papkaning ichida.
+
+1. Bu papkani qisqa yo'lga ko'chiring, masalan: C:\SantexGo
+   (papka yo'lida lotin bo'lmagan harflar bo'lmasin).
+
+2. SantexGo.bat faylini ikki marta bosing.
+   Windows ogohlantirsa: "Run" (yoki "More info" - "Run anyway") ni bosing.
+
+3. Birinchi marta 1-2 daqiqa: baza yaratiladi, katalog va namunaviy mahsulotlar
+   yoziladi. Keyin brauzerda ikkita sahifa ochiladi:
+      Sayt:         http://localhost:3000
+      Admin panel:  http://localhost:3001
+
+4. Admin panelga kirish uchun telefon raqam va parol ADMIN-KIRISH.txt faylida
+   (birinchi ishga tushirishdan keyin shu papkada paydo bo'ladi).
+
+To'xtatish: qora oynani yoping (yoki SantexGo-toxtatish.bat ni bosing).
+Keyingi safar: yana SantexGo.bat ni bosing - qo'shgan mahsulotlaringiz joyida qoladi.
+Barcha ma'lumotlar "data" papkasida saqlanadi.
+
+Bilish muhim:
+- Bu nusxa faqat shu kompyuterda ishlaydi: mijozlar internetdan kira olmaydi.
+  Internetdagi sayt uchun server kerak - qo'llanma: docs/DEPLOY.md,
+  "Tezkor o'rnatish - bitta buyruq" (https://github.com/aabduganiyev002-debug/santexgo).
+- SMS kodlar (ro'yxatdan o'tish, parolni tiklash) haqiqiy SMS bo'lib ketmaydi:
+  ular qora oynada ko'rsatiladi.
+- Yangi versiyaga o'tish: yangi ZIP'ni oching, eski papkadagi "data" papkasini
+  yangi papkaga ko'chiring va SantexGo.bat ni bosing.
+- Xato bo'lsa: qora oynadagi matnni va "data\logs" papkasidagi fayllarni yuboring.
