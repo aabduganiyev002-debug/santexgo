@@ -215,7 +215,7 @@ function writeAdminFile(settings, loginUnchanged) {
     '',
     `Sayt:        ${SITE_URL}`,
     '',
-    "Telefon raqam va parolni o'zgartirish: saytga shu raqam va parol bilan kiring,",
+    "Telefon raqam va parolni o'zgartirish: saytga admin raqami va paroli bilan kiring,",
     `keyin ${SITE_URL}/account/profile ("Profil va xavfsizlik").`,
     '',
     'Bu fayl faqat shu kompyuterdagi sinov nusxasi uchun. Uni boshqalarga bermang.',
