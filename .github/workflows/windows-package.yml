@@ -67,7 +67,13 @@ jobs:
       - name: Paketni yig'ish (PostgreSQL — runner'da o'rnatilganidan)
         run: |
           $pgRoot = if ($env:PGROOT) { $env:PGROOT } else { Split-Path $env:PGBIN }
-          & "$pgRoot\bin\postgres.exe" --version
+          $pgVersion = & "$pgRoot\bin\postgres.exe" --version
+          $pgVersion
+          # Yangi versiyaga "data" papkasini ko'chirib o'tiladi (YORIQNOMA.txt), baza fayllari esa
+          # faqat o'sha asosiy versiyada ochiladi — paket doim PostgreSQL 17 bilan chiqadi
+          if ($pgVersion -notmatch '\(PostgreSQL\) 17\.') {
+            throw "Paket PostgreSQL 17 bilan chiqarilishi kerak, runner'da: $pgVersion"
+          }
           node scripts/windows/build-package.mjs --out "$env:RUNNER_TEMP\pkg" --api-deploy "$env:RUNNER_TEMP\api-deploy" --pg-root $pgRoot
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
