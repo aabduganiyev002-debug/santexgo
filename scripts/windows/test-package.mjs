@@ -1,6 +1,7 @@
 // Windows paketi sinovi (CI): ZIP ochilgan papkada foydalanuvchi kabi SantexGo.bat ni ishga tushiradi,
-// sayt, admin panel, API, rasm yuklash va SMS kodni tekshiradi, SantexGo-toxtatish.bat bilan
-// to'xtatadi; keyin ikkinchi marta (baza va ma'lumotlar saqlangan holda) ishga tushiradi.
+// sayt, admin panel, API, rasm yuklash va SMS kodni tekshiradi, admin telefon raqami va parolini
+// saytda o'zgartiradi, SantexGo-toxtatish.bat bilan to'xtatadi; keyin ikkinchi marta (baza va
+// ma'lumotlar saqlangan holda) ishga tushiradi: eski parol ko'rsatilmaydi, yangisi bilan kiriladi.
 //   node scripts/windows/test-package.mjs <ZIP ochilgan SantexGo papkasi>
 import { spawn, spawnSync } from 'node:child_process';
 import fs from 'node:fs';
@@ -15,6 +16,7 @@ const SITE = 'http://127.0.0.1:3000';
 const ADMIN = 'http://127.0.0.1:3001';
 const API = 'http://127.0.0.1:4000';
 const PORTS = [3000, 3001, 4000, 54329];
+const NEW_ADMIN = { phone: '+998901112255', password: 'Yangi-admin-parol-1' };
 // 16x16 PNG
 const PNG = Buffer.from(
   'iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAIAAACQkWg2AAAAFklEQVR42mO46SFPEmIY1TCqYfhqAADZxkAQ7D8XygAAAABJRU5ErkJggg==',
@@ -221,6 +223,69 @@ async function checkEverything(started) {
     fail("SMS kod oynada ko'rsatilmadi");
   }
   ok("SMS kod oynada ko'rsatildi");
+
+  await changeAdminLogin(started, settings, cookies);
+}
+
+/** Foydalanuvchi kabi: saytdagi "Profil va xavfsizlik" — yangi raqam (SMS kod oynada) va parol */
+async function changeAdminLogin(started, settings, cookies) {
+  const headers = { origin: 'http://localhost:3000', 'content-type': 'application/json' };
+  await expectStatus('Yangi raqamga SMS kod', 200, `${SITE}/api/v1/account/phone/send-code`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({ phone: NEW_ADMIN.phone }),
+    cookies,
+  });
+  let code = null;
+  const deadline = Date.now() + 15_000;
+  while (!code && Date.now() < deadline) {
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    const line = readLog(started.logFile)
+      .split(/\r?\n/)
+      .find((text) => text.includes(`ko'rsatiladi): ${NEW_ADMIN.phone}`));
+    code = line?.match(/kodi (\d+)/)?.[1] ?? null;
+  }
+  if (!code) fail("Yangi raqam uchun SMS kod oynada ko'rsatilmadi");
+  const user = await (
+    await expectStatus('Yangi raqamni tasdiqlash', 200, `${SITE}/api/v1/account/phone`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ phone: NEW_ADMIN.phone, code }),
+      cookies,
+    })
+  ).json();
+  if (user.phone !== NEW_ADMIN.phone) fail(`Telefon raqami o'zgarmadi: ${user.phone}`);
+  await expectStatus("Parolni o'zgartirish", 204, `${SITE}/api/v1/account/password`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({
+      currentPassword: settings.adminPassword,
+      password: NEW_ADMIN.password,
+      passwordConfirm: NEW_ADMIN.password,
+    }),
+    cookies,
+  });
+  ok("Admin telefon raqami va paroli saytda o'zgartirildi");
+}
+
+/** Ikkinchi ishga tushirish: eski parol hech qayerda ko'rsatilmaydi, yangisi bilan kiriladi */
+async function checkChangedAdminLogin(started) {
+  const settings = JSON.parse(fs.readFileSync(path.join(DIR, 'data', 'settings.json'), 'utf8'));
+  const adminFile = fs.readFileSync(path.join(DIR, 'ADMIN-KIRISH.txt'), 'utf8');
+  if (readLog(started.logFile).includes(settings.adminPassword)) {
+    fail("Oynada eski (o'zgartirilgan) admin paroli ko'rsatildi");
+  }
+  if (adminFile.includes(settings.adminPassword) || !adminFile.includes("o'zgartirilgan")) {
+    fail(`ADMIN-KIRISH.txt yangilanmagan:\n${adminFile}`);
+  }
+  const login = await expectStatus('Yangi login bilan kirish', 200, `${ADMIN}/api/v1/auth/login`, {
+    method: 'POST',
+    headers: { origin: 'http://localhost:3001', 'content-type': 'application/json' },
+    body: JSON.stringify(NEW_ADMIN),
+  });
+  const { user } = await login.json();
+  if (user?.role !== 'ADMIN') fail(`Kirgan foydalanuvchi admin emas: ${user?.role}`);
+  ok("O'zgartirilgan admin login: eski parol ko'rsatilmaydi, yangisi bilan kiriladi");
 }
 
 function printLogs() {
@@ -246,6 +311,7 @@ try {
   if (readLog(second.logFile).includes("Boshlang'ich ma'lumotlar yozildi")) {
     fail('Ikkinchi ishga tushirishda seed qayta bajarildi');
   }
+  await checkChangedAdminLogin(second);
   await expectText(
     'Ikkinchi marta: mahsulot sahifasi',
     `${SITE}/products/plastherm-ppr-truba-d25-pn20-4-m`,

@@ -16,6 +16,9 @@ Hech narsa o'rnatish shart emas: Node.js va PostgreSQL shu papkaning ichida.
 
 4. Admin panelga kirish uchun telefon raqam va parol ADMIN-KIRISH.txt faylida
    (birinchi ishga tushirishdan keyin shu papkada paydo bo'ladi).
+   O'z telefon raqamingiz va parolingizni qo'yish: saytga shu raqam va parol bilan
+   kiring, keyin http://localhost:3000/account/profile ("Profil va xavfsizlik").
+   Yangi raqamga SMS kod shu qora oynada chiqadi.
 
 To'xtatish: qora oynani yoping (yoki SantexGo-toxtatish.bat ni bosing).
 Keyingi safar: yana SantexGo.bat ni bosing - qo'shgan mahsulotlaringiz joyida qoladi.

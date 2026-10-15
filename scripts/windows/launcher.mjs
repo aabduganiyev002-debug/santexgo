@@ -199,19 +199,46 @@ function formatPhone(phone) {
   return `+${d.slice(0, 3)} ${d.slice(3, 5)} ${d.slice(5, 8)} ${d.slice(8, 10)} ${d.slice(10, 12)}`;
 }
 
-function writeAdminFile(settings) {
+function writeAdminFile(settings, loginUnchanged) {
+  const login = loginUnchanged
+    ? [`Telefon:     ${formatPhone(settings.adminPhone)}`, `Parol:       ${settings.adminPassword}`]
+    : [
+        "Telefon raqam yoki parol saytda o'zgartirilgan - o'zingiz qo'ygan raqam va parol",
+        "bilan kiring. Parolni unutgan bo'lsangiz:",
+        `${SITE_URL}/forgot-password (SMS kod qora oynada chiqadi).`,
+      ];
   const lines = [
     'SantexGo - admin panelga kirish',
     '',
     `Admin panel: ${ADMIN_URL}`,
-    `Telefon:     ${formatPhone(settings.adminPhone)}`,
-    `Parol:       ${settings.adminPassword}`,
+    ...login,
     '',
     `Sayt:        ${SITE_URL}`,
+    '',
+    "Telefon raqam va parolni o'zgartirish: saytga shu raqam va parol bilan kiring,",
+    `keyin ${SITE_URL}/account/profile ("Profil va xavfsizlik").`,
     '',
     'Bu fayl faqat shu kompyuterdagi sinov nusxasi uchun. Uni boshqalarga bermang.',
   ];
   fs.writeFileSync(ADMIN_FILE, `${lines.join('\r\n')}\r\n`);
+}
+
+/**
+ * Birinchi ishga tushirishda yaratilgan admin login va paroli hali amaldami. Saytda ("Profil va
+ * xavfsizlik" yoki "Parolni unutdingizmi?") raqam yoki parol o'zgartirilsa, eskisi ko'rsatilmaydi.
+ */
+function adminLoginUnchanged(settings) {
+  if (!/^\+998\d{9}$/.test(settings.adminPhone)) return false;
+  const found = run(
+    exe('psql'),
+    [
+      ...['-h', DB.host, '-p', String(DB.port), '-U', DB.user, '-d', DB.name, '-tAc'],
+      `SELECT 1 FROM users WHERE phone = '${settings.adminPhone}' AND role = 'ADMIN' ` +
+        'AND is_active AND password_changed_at IS NULL',
+    ],
+    { env: pgEnv(settings), what: 'Admin akkauntini tekshirish (psql)' },
+  ).trim();
+  return found === '1';
 }
 
 // ─────────────────────────────── PostgreSQL ───────────────────────────────
@@ -527,7 +554,8 @@ async function start() {
   ensureDatabase(settings);
   migrate(settings);
   seed(settings);
-  writeAdminFile(settings);
+  const adminUnchanged = adminLoginUnchanged(settings);
+  writeAdminFile(settings, adminUnchanged);
 
   info('Sayt, admin panel va API ishga tushirilmoqda...');
   const api = startService(
@@ -578,8 +606,13 @@ async function start() {
   say('');
   say(`   Sayt:         ${SITE_URL}`);
   say(`   Admin panel:  ${ADMIN_URL}`);
-  say(`   Admin login:  ${formatPhone(settings.adminPhone)}   parol: ${settings.adminPassword}`);
-  say(`                 (ADMIN-KIRISH.txt faylida ham yozilgan)`);
+  if (adminUnchanged) {
+    say(`   Admin login:  ${formatPhone(settings.adminPhone)}   parol: ${settings.adminPassword}`);
+    say(`                 (ADMIN-KIRISH.txt faylida ham yozilgan)`);
+  } else {
+    say("   Admin login:  saytda o'zingiz o'zgartirgan telefon raqam va parol");
+    say(`                 (parolni unutgan bo'lsangiz: ${SITE_URL}/forgot-password)`);
+  }
   say('');
   say("   SMS kodlar (ro'yxatdan o'tish, parol tiklash) shu oynada chiqadi -");
   say('   kompyuterdagi nusxada haqiqiy SMS yuborilmaydi.');
