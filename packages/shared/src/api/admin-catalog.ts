@@ -218,3 +218,17 @@ export interface CatalogImportImageResult {
   /** Rasmi bor yoki topilmagan mahsulotlar */
   skipped: number;
 }
+
+/** Saytdagi namunaviy (sinov) ma'lumotlar — seed yozgan, hali o'chirilmagan */
+export interface SampleDataSummary {
+  /** Sotuvdagi (arxivlanmagan) namunaviy mahsulotlar */
+  products: number;
+  discounts: number;
+}
+
+export interface SampleDataRemoval {
+  productsDeleted: number;
+  /** Buyurtmalarda bor — arxivlandi (saytda ko'rinmaydi) */
+  productsArchived: number;
+  discounts: number;
+}

@@ -1,4 +1,9 @@
-import type { AdminProductDetail, CatalogImportBatchResult } from '@santexgo/shared';
+import {
+  type AdminProductDetail,
+  type CatalogImportBatchResult,
+  SAMPLE_DISCOUNT_NAMES,
+  SAMPLE_PRODUCT_SKUS,
+} from '@santexgo/shared';
 import sharp from 'sharp';
 import supertest from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -245,5 +250,54 @@ describe('Admin: katalog importi', () => {
       .field('skus', sku('20'))
       .expect(400);
     expect(noFile.body.code).toBe('FILE_INVALID');
+  });
+});
+
+describe('Admin: namunaviy ma’lumotlar', () => {
+  it('namunaviy chegirma o‘chib haqiqiy mahsulot narxi tiklanadi, namunaviy mahsulotlar ketadi', async () => {
+    const category = await ctx.prisma.category.findUniqueOrThrow({ where: { slug: childSlug } });
+    const brand = await ctx.prisma.brand.findUniqueOrThrow({ where: { slug: brandSlug } });
+    // Namunaviy chegirma (seed nomi bilan) haqiqiy (import qilingan) mahsulotga ham tushadi
+    await admin
+      .post('/api/v1/admin/discounts')
+      .send({
+        name: SAMPLE_DISCOUNT_NAMES[2],
+        type: 'PERCENT',
+        value: 5,
+        endsAt: new Date(Date.now() + 86_400_000).toISOString(),
+        targets: { categoryIds: [category.id] },
+      })
+      .expect(201);
+    expect((await findProduct('25')).currentPrice).toBe(11_590);
+    // Seed bo'lmagan bazada — namunaviy mahsulot qo'lda
+    const sampleSku = SAMPLE_PRODUCT_SKUS[0]!;
+    if (!(await ctx.prisma.product.findUnique({ where: { sku: sampleSku } }))) {
+      await admin
+        .post('/api/v1/admin/products')
+        .send({
+          sku: sampleSku,
+          name: 'Namunaviy truba',
+          brandId: brand.id,
+          categoryId: category.id,
+          basePrice: 1000,
+        })
+        .expect(201);
+    }
+
+    const summary = (await admin.get('/api/v1/admin/catalog-import/sample-data').expect(200)).body;
+    expect(summary.products).toBeGreaterThanOrEqual(1);
+    expect(summary.discounts).toBeGreaterThanOrEqual(1);
+    const removed = (await admin.delete('/api/v1/admin/catalog-import/sample-data').expect(200))
+      .body;
+    expect(removed.discounts).toBe(summary.discounts);
+    expect(removed.productsDeleted + removed.productsArchived).toBeGreaterThanOrEqual(1);
+
+    expect((await admin.get('/api/v1/admin/catalog-import/sample-data').expect(200)).body).toEqual({
+      products: 0,
+      discounts: 0,
+    });
+    expect((await findProduct('25')).currentPrice).toBe(12_200);
+    const sample = await ctx.prisma.product.findUnique({ where: { sku: sampleSku } });
+    expect(sample === null || !sample.isActive).toBe(true);
   });
 });

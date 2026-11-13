@@ -1,9 +1,20 @@
-import { Body, Controller, HttpCode, HttpStatus, Post, UploadedFile } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Post,
+  UploadedFile,
+} from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import {
   type CatalogImportBatchResult,
   type CatalogImportImageResult,
+  type SampleDataRemoval,
+  type SampleDataSummary,
   catalogImportBatchSchema,
   catalogImportImageSchema,
   type z,
@@ -17,6 +28,7 @@ import {
 } from '../../../common/http/uploads.js';
 import { ZodBody, ZodValidationPipe } from '../../../common/validation/zod-validation.js';
 import { AdminCatalogImportService } from './admin-catalog-import.service.js';
+import { AdminSampleDataService } from './admin-sample-data.service.js';
 
 /** Katalog importi: minglab mahsulot va yuzlab rasm — umumiy so'rovlar chegarasidan kengroq */
 const IMPORT_LIMIT = { default: { limit: 3000, ttl: 60_000 } };
@@ -26,7 +38,10 @@ const IMPORT_LIMIT = { default: { limit: 3000, ttl: 60_000 } };
 @Throttle(IMPORT_LIMIT)
 @Controller('admin/catalog-import')
 export class AdminCatalogImportController {
-  constructor(private readonly imports: AdminCatalogImportService) {}
+  constructor(
+    private readonly imports: AdminCatalogImportService,
+    private readonly samples: AdminSampleDataService,
+  ) {}
 
   @Post('products')
   @HttpCode(HttpStatus.OK)
@@ -57,5 +72,22 @@ export class AdminCatalogImportController {
   ): Promise<CatalogImportImageResult> {
     if (!file) throw ApiError.badRequest('FILE_INVALID', 'Fayl tanlanmagan');
     return this.imports.attachImage(file.buffer, body.skus, actor);
+  }
+
+  @Get('sample-data')
+  @ApiOperation({ summary: 'Saytdagi namunaviy (sinov) mahsulotlar va chegirmalar soni' })
+  sampleData(): Promise<SampleDataSummary> {
+    return this.samples.summary();
+  }
+
+  @Delete('sample-data')
+  @ApiOperation({
+    summary: 'Namunaviy ma’lumotlarni o‘chirish (haqiqiy katalog yuklangach)',
+    description:
+      'Seed yozgan namunaviy chegirmalar (narxlar qayta hisoblanadi), mahsulotlar (buyurtmalarda ' +
+      'bo‘lsa — arxivlanadi), ularning guruhlari va Vero brendi.',
+  })
+  removeSampleData(@Actor() actor: ActorContext): Promise<SampleDataRemoval> {
+    return this.samples.remove(actor);
   }
 }

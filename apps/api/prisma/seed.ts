@@ -12,7 +12,15 @@
  * Faqat admin yaratish/tayinlash: SEED_SCOPE=admin pnpm db:seed
  */
 import { PrismaPg } from '@prisma/adapter-pg';
-import { isDiscountActive, normalizeUzPhone, slugify } from '@santexgo/shared';
+import {
+  isDiscountActive,
+  normalizeUzPhone,
+  SAMPLE_BRAND_SLUGS,
+  SAMPLE_DISCOUNT_NAMES,
+  SAMPLE_GROUP_NAMES,
+  SAMPLE_PRODUCT_SKUS,
+  slugify,
+} from '@santexgo/shared';
 import { PrismaClient, type Prisma } from '../src/generated/prisma/client.js';
 import { ADMIN_PASSWORD_MIN_LENGTH, hashPassword } from '../src/common/security/password.js';
 import { dbErrorHint } from '../src/infra/prisma/db-error-hint.js';
@@ -171,6 +179,31 @@ async function seedReferenceData(prisma: PrismaClient, withSamples: boolean) {
   }
 
   return { warehouse, materialIds, attributeIds, categoryIds, brandIds, groupIds };
+}
+
+/**
+ * Admin paneldagi "Namunaviy ma'lumotlarni o'chirish" @santexgo/shared dagi ro'yxatlarga tayanadi —
+ * namunaviy mahsulot, chegirma, guruh yoki brend o'zgarsa, ro'yxat ham yangilanishi kerak.
+ */
+function assertSampleListsInSync(): void {
+  const checks: Array<[string, string[], readonly string[]]> = [
+    ['SAMPLE_PRODUCT_SKUS', PRODUCTS.map((p) => p.sku), SAMPLE_PRODUCT_SKUS],
+    ['SAMPLE_DISCOUNT_NAMES', DISCOUNTS.map((d) => d.name), SAMPLE_DISCOUNT_NAMES],
+    ['SAMPLE_GROUP_NAMES', GROUPS.map((g) => g.name), SAMPLE_GROUP_NAMES],
+    // Plastherm — haqiqiy brend (katalog importi ham ishlatadi), namunaviy emas
+    [
+      'SAMPLE_BRAND_SLUGS',
+      BRANDS.map((b) => b.slug).filter((slug) => slug !== 'plastherm'),
+      SAMPLE_BRAND_SLUGS,
+    ],
+  ];
+  for (const [name, seeded, listed] of checks) {
+    const a = [...seeded].sort().join('\n');
+    const b = [...listed].sort().join('\n');
+    if (a !== b) {
+      throw new Error(`@santexgo/shared ${name} seed'dagi namunaviy ma'lumotlarga mos emas`);
+    }
+  }
 }
 
 async function seedProducts(
@@ -525,6 +558,7 @@ async function main(): Promise<void> {
           `brendlar: ${refs.brandIds.size}`,
       );
       if (withSamples) {
+        assertSampleListsInSync();
         const { productIds, restocked } = await seedProducts(prisma, refs);
         await seedDiscounts(prisma, refs, productIds);
         const repriced = await recalculatePrices(prisma);
