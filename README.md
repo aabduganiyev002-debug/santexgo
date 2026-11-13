@@ -125,6 +125,7 @@ API hujjati (Swagger) — http://localhost:4000/api/docs, "Katalog" va "Admin: .
 - **Filtrlar birgalikda:** `/api/v1/catalog/products?brand=plastherm&material=ppr&diameter_mm=25&pn=PN20&priceMin=50000&priceMax=200000` — har bir filtr qiymati yonida nechta mahsulot borligi qaytadi.
 - **Qidiruv** nom, SKU, brend, kategoriya, material va o'lchamlar bo'yicha: "Plastherm 25 PN20", xato yozuv ("plasterm"), kirill ("пвх труба 50"), xalq tili ("quvur" → truba, "otvod" → tirsak). Alohida qidiruv serveri kerak emas — PostgreSQL'ning o'zida (pg_trgm).
 - **Ombor:** sotuvda mavjud qoldiq bazadagi trigger orqali avtomatik hisoblanadi; har bir o'zgarish tarixga yoziladi. Qoldiq 0 bo'lsa mahsulot "Sotuvda yo'q" bo'ladi va ro'yxat oxiriga tushadi.
+- **Katalogni yuklash**: admin panelda bitta ZIP fayl (katalog.json + rasmlar) bilan yuzlab mahsulot narxi, qoldig'i va rasmlari bilan qo'shiladi yoki narxlari yangilanadi — [docs/KATALOG-IMPORT.md](docs/KATALOG-IMPORT.md).
 - **Rasmlar** yuklanganda tekshiriladi va WebP formatida 3 o'lchamga (1600/800/400 px) keltiriladi. Standart holatda `apps/api/uploads` papkasida saqlanadi; production'da server diskida yoki S3 (Cloudflare R2) da — `docker/.env.production` da bir nechta qator ([docs/DEPLOY.md](docs/DEPLOY.md)).
 - **Admin amallari** (yaratish, tahrirlash, o'chirish, ombor) `audit_logs` jurnaliga yoziladi. Buyurtmalarda bor mahsulot o'chirilmaydi — arxivlanadi.
 
