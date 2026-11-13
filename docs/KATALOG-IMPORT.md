@@ -15,6 +15,15 @@ qoldig'i va rasmlari bilan qo'shiladi; keyingi narx ro'yxati xuddi shu yo'l bila
 - Faylni qayta yuklash xavfsiz: hech narsa ikki marta qo'shilmaydi. Xato qator (masalan, kategoriyasi
   topilmagan) boshqalariga xalaqit bermaydi — natijada SKU va sababi bilan ko'rsatiladi.
 
+## Namunaviy ma'lumotlar
+
+Windows paketi va sinov serveri dastur bilan birga namunaviy (sinov) mahsulot va chegirmalarni yozadi.
+Haqiqiy katalog yuklangach, **Katalogni yuklash** sahifasidagi **«Namunaviy ma'lumotlarni o'chirish»**
+tugmasini bosing: aks holda namunaviy chegirmalar (masalan, butun «Kanalizatsiya» kategoriyasiga −5%)
+haqiqiy mahsulotlarga ham tushadi. Tugma faqat seed yozgan namunaviy mahsulotlar, chegirmalar, ularning
+guruhlari va Vero brendini o'chiradi (ro'yxat: `packages/shared/src/sample-data.ts`); buyurtmalarda bor
+mahsulot arxivlanadi.
+
 ## Fayl tuzilishi
 
 ```

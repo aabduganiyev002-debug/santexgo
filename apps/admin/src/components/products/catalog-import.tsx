@@ -19,6 +19,7 @@ import { strFromU8, unzipSync } from 'fflate';
 import { CheckCircle2, FileArchive, Upload } from 'lucide-react';
 import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
+import { SampleDataCard } from './sample-data-card';
 
 /** Rasmlar parallel yuboriladi (server har birini WebP'ga o'giradi) */
 const IMAGE_CONCURRENCY = 3;
@@ -102,6 +103,7 @@ export function CatalogImport() {
 
   return (
     <div className="max-w-3xl space-y-4">
+      <SampleDataCard />
       <input
         ref={input}
         type="file"
