@@ -12,3 +12,13 @@ onlyBuiltDependencies:
 ignoredBuiltDependencies:
   - '@scarf/scarf'
   - '@swc/core'
+
+# Ichki (tranzitiv) bog'liqliklardagi xavfsizlik tuzatishlari — ota paketlar (Nest, express, ajv)
+# yangi versiyani hali talab qilmaydi. Bir xil asosiy versiya ichida, faqat yuqoriga
+overrides:
+  multer@2: ^2.5.0
+  body-parser@2: ^2.4.0
+  qs@6: ^6.17.1
+  fast-uri@3: ^3.1.9
+  # eslint-plugin-react-hooks ichida (faqat ishlab chiqish vositasi)
+  zod@4: ^4.6.7
