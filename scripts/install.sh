@@ -1,5 +1,5 @@
 #!/bin/sh
-# SantexGo — serverga bitta buyruq bilan o'rnatish va yangilash (Ubuntu 22.04/24.04, Debian 12).
+# SantexGo — serverga bitta buyruq bilan o'rnatish va yangilash (Ubuntu 22.04/24.04/26.04, Debian 12).
 #
 #   curl -fsSL https://raw.githubusercontent.com/aabduganiyev002-debug/santexgo/main/scripts/install.sh -o install.sh && sudo sh install.sh
 #
@@ -508,7 +508,7 @@ check_system() {
   arch=$(uname -m)
   warn=0
   case "$os_id:$os_version" in
-    ubuntu:22.04 | ubuntu:24.04 | debian:12) ok "Tizim: $os_name ($arch)" ;;
+    ubuntu:22.04 | ubuntu:24.04 | ubuntu:26.04 | debian:12) ok "Tizim: $os_name ($arch)" ;;
     *)
       note "Bu tizimda sinab ko'rilmagan: $os_name. Tavsiya: Ubuntu 24.04 LTS"
       warn=1

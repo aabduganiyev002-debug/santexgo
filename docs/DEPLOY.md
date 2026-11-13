@@ -37,7 +37,7 @@ git pull && sh scripts/prod.sh deploy
 
 ## Tezkor o'rnatish — bitta buyruq
 
-Yangi Ubuntu 22.04 yoki 24.04 serverida hamma ishni bitta skript (`scripts/install.sh`) bajaradi. Oldindan kerak faqat server (2-bo'lim). Domen (3-bo'lim) va Eskiz.uz akkaunti (5.2) bo'lsa — yaxshi, bo'lmasa ham bo'ladi:
+Yangi Ubuntu 22.04, 24.04 yoki 26.04 serverida hamma ishni bitta skript (`scripts/install.sh`) bajaradi. Oldindan kerak faqat server (2-bo'lim). Domen (3-bo'lim) va Eskiz.uz akkaunti (5.2) bo'lsa — yaxshi, bo'lmasa ham bo'ladi:
 
 - **Domen bo'lmasa** — sayt bepul manzilda ochiladi: server IP'si nomning ichida, masalan `https://185-74-5-12.sslip.io` va admin panel `https://admin.185-74-5-12.sslip.io` (HTTPS bilan; DNS sozlash shart emas). Bu boshlash uchun: o'z domeningiz (`santexgo.uz`) mijozlarga ishonchliroq ko'rinadi va qidiruv tizimlarida yaxshiroq.
 - **Eskiz akkaunti bo'lmasa** — sayt SMS'siz ishga tushadi: katalog, admin panel, mahsulot qo'shish ishlaydi, lekin mijozlar ro'yxatdan o'ta olmaydi va parolni tiklay olmaydi, shuning uchun buyurtma ham bera olmaydi (ro'yxatdan o'tish sahifasida "do'konga qo'ng'iroq qiling" degan xabar chiqadi).
@@ -71,9 +71,11 @@ Oxirida sayt va admin panel manzillari chiqadi. Keyingi qadamlar: do'konni sozla
 **So'rovsiz** (masalan, avtomatlashtirishda): qiymatlar muhit o'zgaruvchilari bilan beriladi, berilganlari so'ralmaydi; terminal bo'lmasa, yetishmagan yoki noto'g'ri qiymat — xato (`SITE_DOMAIN` berilmasa — bepul manzil, `ESKIZ_EMAIL` berilmasa — SMS'siz). Bu usulda parollar buyruqlar tarixida qoladi.
 
 ```
-sudo SITE_DOMAIN=santexgo.uz ACME_EMAIL=siz@example.com ESKIZ_EMAIL=siz@example.com \
+sudo env SITE_DOMAIN=santexgo.uz ACME_EMAIL=siz@example.com ESKIZ_EMAIL=siz@example.com \
   ESKIZ_PASSWORD='...' ADMIN_PHONE=+998901234567 ADMIN_PASSWORD='...' sh install.sh
 ```
+
+`sudo env ...` ko'rinishi muhim: Ubuntu 26.04'dagi `sudo` (sudo-rs) `sudo -E` da muhit o'zgaruvchilarini o'tkazmaydi.
 
 Ixtiyoriy: `ADMIN_DOMAIN` (standart `admin.<SITE_DOMAIN>`), `INSTALL_DIR` (`/opt/santexgo`), `SANTEXGO_REPO` va `SANTEXGO_BRANCH` (shu repozitoriy, `main`), `SEED_SAMPLE_PRODUCTS=true` (namunaviy mahsulotlar — faqat sinov serveri), `SKIP_FIREWALL=1` (firewall'ga tegmaslik), `SKIP_DNS_CHECK=1`. Eskiz parolida `'` belgisi bo'lmasin — sozlamalar fayliga xavfsiz yozib bo'lmaydi.
 

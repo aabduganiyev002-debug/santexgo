@@ -404,6 +404,11 @@ jobs:
       ADMIN_PASSWORD: ci-admin-password-123
       SEED_SAMPLE_PRODUCTS: 'true'
       SKIP_FIREWALL: '1'
+      # O'rnatuvchiga root sifatida uzatiladigan o'zgaruvchilar: `sudo env VAR=...` bilan aniq beriladi —
+      # Ubuntu 26.04'dagi sudo-rs `sudo -E` da muhitni saqlamaydi
+      ROOT_ENV: >-
+        INSTALL_DIR SANTEXGO_REPO SANTEXGO_BRANCH SITE_DOMAIN ADMIN_DOMAIN ACME_EMAIL ESKIZ_EMAIL
+        ESKIZ_PASSWORD ADMIN_PHONE ADMIN_PASSWORD SEED_SAMPLE_PRODUCTS SKIP_FIREWALL
 
     steps:
       - uses: actions/checkout@v6
@@ -417,17 +422,20 @@ jobs:
         run: dash .github/scripts/install-unit.sh
 
       - name: Noto'g'ri ishga tushirish darhol rad etiladi (root'siz, noto'g'ri qiymatlar)
+        shell: bash
         run: |
           log=$RUNNER_TEMP/rad.log
           if sh scripts/install.sh > "$log" 2>&1; then echo "✖ root'siz ishladi"; exit 1; fi
           grep -q 'Root huquqi kerak' "$log"
+          envs=(); for v in $ROOT_ENV; do envs+=("$v=${!v}"); done
           for bad in SITE_DOMAIN=noto_g_ri "ESKIZ_PASSWORD=it's" ADMIN_PASSWORD=qisqa ADMIN_PHONE=12345; do
-            if timeout 120 sudo -E env "$bad" sh scripts/install.sh > "$log" 2>&1; then
+            if timeout 120 sudo env "${envs[@]}" "$bad" sh scripts/install.sh > "$log" 2>&1; then
               cat "$log"
               echo "✖ Qabul qilindi: $bad"
               exit 1
             fi
-            grep '✖' "$log"
+            # Aynan shu qiymat rad etilgan bo'lishi kerak (masalan, ACME_EMAIL yetishmagani emas)
+            grep '✖' "$log" | grep -F "${bad%%=*}"
           done
           test ! -e /opt/santexgo
 
@@ -436,7 +444,8 @@ jobs:
         shell: bash
         run: |
           log=$RUNNER_TEMP/install-1.log
-          sudo -E env -u ESKIZ_EMAIL -u ESKIZ_PASSWORD sh scripts/install.sh 2>&1 | tee "$log"
+          envs=(); for v in $ROOT_ENV; do [[ $v == ESKIZ_* ]] || envs+=("$v=${!v}"); done
+          sudo env "${envs[@]}" sh scripts/install.sh 2>&1 | tee "$log"
           grep -q 'SMS ulanmagan' "$log"
 
       - name: Kod shu commit'dan, sozlamalar fayli (600), SMS'siz ro'yxatdan o'tish — tushunarli xato
@@ -465,7 +474,8 @@ jobs:
         shell: bash
         run: |
           log=$RUNNER_TEMP/install-2.log
-          sudo -E sh scripts/install.sh 2>&1 | tee "$log"
+          envs=(); for v in $ROOT_ENV; do envs+=("$v=${!v}"); done
+          sudo env "${envs[@]}" sh scripts/install.sh 2>&1 | tee "$log"
           grep -q 'Rejim: yangilash' "$log"
           grep -q 'Migratsiyalardan oldin zaxira nusxa olinmoqda' "$log"
           grep -q 'Admin akkaunt allaqachon bor' "$log"
