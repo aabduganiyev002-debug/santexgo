@@ -112,14 +112,16 @@ export const attributeValueInputSchema = z.object({
   value: z.union([z.number().finite(), z.string().trim().max(120), z.boolean(), z.null()]),
 });
 
+export const skuSchema = z
+  .string({ error: 'SKU kiriting' })
+  .trim()
+  .toUpperCase()
+  .regex(/^[A-Z0-9][A-Z0-9._\-/]{1,63}$/, {
+    error: 'SKU: lotin harflari, raqamlar, tire va nuqta (masalan: PLT-PPR-PN20-25)',
+  });
+
 export const productInputSchema = z.object({
-  sku: z
-    .string({ error: 'SKU kiriting' })
-    .trim()
-    .toUpperCase()
-    .regex(/^[A-Z0-9][A-Z0-9._\-/]{1,63}$/, {
-      error: 'SKU: lotin harflari, raqamlar, tire va nuqta (masalan: PLT-PPR-PN20-25)',
-    }),
+  sku: skuSchema,
   name: requiredName(200),
   slug: slugInput,
   brandId: z.uuid({ error: 'Brendni tanlang' }),

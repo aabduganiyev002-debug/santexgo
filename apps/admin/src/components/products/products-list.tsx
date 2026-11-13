@@ -8,7 +8,7 @@ import { cn } from '@santexgo/ui/cn';
 import { inputClass } from '@santexgo/ui/field';
 import { formatSom } from '@santexgo/ui/format';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
-import { Package, Plus } from 'lucide-react';
+import { Package, Plus, Upload } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Pagination } from '@/components/data/pagination';
@@ -59,10 +59,16 @@ export function ProductsList() {
         title="Mahsulotlar"
         description="Narx, qoldiq, chegirma va holat — bir joyda"
         actions={
-          <Link href="/products/new" className={buttonClass('primary')}>
-            <Plus className="h-4 w-4" aria-hidden="true" />
-            Mahsulot qo‘shish
-          </Link>
+          <>
+            <Link href="/products/import" className={buttonClass('outline')}>
+              <Upload className="h-4 w-4" aria-hidden="true" />
+              Katalogni yuklash
+            </Link>
+            <Link href="/products/new" className={buttonClass('primary')}>
+              <Plus className="h-4 w-4" aria-hidden="true" />
+              Mahsulot qo‘shish
+            </Link>
+          </>
         }
       />
 

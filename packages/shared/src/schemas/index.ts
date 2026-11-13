@@ -1,5 +1,6 @@
 export * from './auth.js';
 export * from './catalog-admin.js';
+export * from './catalog-import.js';
 export * from './catalog.js';
 export * from './common.js';
 export * from './content-admin.js';

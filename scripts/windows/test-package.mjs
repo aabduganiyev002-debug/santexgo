@@ -219,6 +219,59 @@ async function checkEverything(started) {
   );
   ok("Rasm yuklash: PNG → WebP, saytda ochiladi, o'chiriladi");
 
+  // Katalog importi (admin panel ZIP'ni shu so'rovlar bilan yuklaydi): 2 ta mahsulot, umumiy rasm
+  const json = { origin: 'http://localhost:3001', 'content-type': 'application/json' };
+  const imported = await (
+    await expectStatus('Katalog importi', 200, `${ADMIN}/api/v1/admin/catalog-import/products`, {
+      method: 'POST',
+      headers: json,
+      cookies,
+      body: JSON.stringify({
+        categories: [{ slug: 'sinov-import', name: 'Sinov import', parent: null }],
+        brands: [{ slug: 'plastherm', name: 'Plastherm' }],
+        products: ['20', '25'].map((size) => ({
+          sku: `SINOV-IMPORT-${size}`,
+          name: `ТРУБА СИНОВ Ø ${size}`,
+          category: 'sinov-import',
+          brand: 'plastherm',
+          group: 'ТРУБА СИНОВ',
+          groupAttribute: 'diameter_mm',
+          unit: 'METER',
+          price: 1000 * Number(size),
+          stock: 100,
+          attributes: { diameter_mm: Number(size) },
+        })),
+      }),
+    })
+  ).json();
+  if (imported.created !== 2) fail(`Katalog importi: ${JSON.stringify(imported)}`);
+  const importImage = new FormData();
+  importImage.append('skus', 'SINOV-IMPORT-20,SINOV-IMPORT-25');
+  importImage.append('file', new Blob([PNG], { type: 'image/png' }), 'truba.png');
+  const attached = await (
+    await expectStatus('Katalog importi: rasm', 200, `${ADMIN}/api/v1/admin/catalog-import/image`, {
+      method: 'POST',
+      headers: { origin: 'http://localhost:3001' },
+      cookies,
+      body: importImage,
+    })
+  ).json();
+  if (attached.attached !== 2)
+    fail(`Katalog importi: rasm biriktirilmadi ${JSON.stringify(attached)}`);
+  const found = await (
+    await expectStatus(
+      'Import qilingan mahsulotlar',
+      200,
+      `${SITE}/api/v1/catalog/products?q=SINOV-IMPORT`,
+    )
+  ).json();
+  if (found.items?.length !== 2 || !found.items.every((item) => item.image?.thumb)) {
+    fail(
+      `Import qilingan mahsulotlar saytda rasmi bilan ko'rinmadi: ${JSON.stringify(found.items)}`,
+    );
+  }
+  ok('Katalog importi: mahsulotlar va umumiy rasm, saytda ko‘rinadi');
+
   // SMS kod: kompyuterda yuborilmaydi — oynada ko'rsatiladi
   await expectStatus("SMS kod so'rash", 200, `${SITE}/api/v1/auth/register/send-code`, {
     method: 'POST',
