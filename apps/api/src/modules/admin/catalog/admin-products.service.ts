@@ -206,6 +206,11 @@ export class AdminProductsService {
   // ─────────────────────────── Yaratish va tahrirlash ───────────────────────────
 
   async create(input: ProductCreate, actor: ActorContext): Promise<AdminProductDetail> {
+    return this.get(await this.createProduct(input, actor));
+  }
+
+  /** Yaratadi va ID qaytaradi (katalog importi to'liq ma'lumotni qayta o'qimaydi) */
+  async createProduct(input: ProductCreate, actor: ActorContext): Promise<string> {
     await this.assertReferences(input);
     await this.assertSkuFree(input.sku);
     const attributes = input.attributes ? await this.resolveAttributes(input.attributes) : [];
@@ -276,10 +281,15 @@ export class AdminProductsService {
       entityId: productId,
       changes: { sku: input.sku, name: input.name, basePrice: input.basePrice },
     });
-    return this.get(productId);
+    return productId;
   }
 
   async update(id: string, input: ProductUpdate, actor: ActorContext): Promise<AdminProductDetail> {
+    await this.updateProduct(id, input, actor);
+    return this.get(id);
+  }
+
+  async updateProduct(id: string, input: ProductUpdate, actor: ActorContext): Promise<void> {
     const before = await this.prisma.product.findUnique({ where: { id } });
     if (!before) throw ApiError.notFound('Mahsulot topilmadi');
     await this.assertReferences(input);
@@ -352,7 +362,6 @@ export class AdminProductsService {
         ...(input.attributes ? { attributes: input.attributes } : {}),
       },
     });
-    return this.get(id);
   }
 
   /** Buyurtmalarda bo'lsa — arxivlanadi (saytda ko'rinmaydi), aks holda butunlay o'chiriladi. */
@@ -382,10 +391,8 @@ export class AdminProductsService {
     }
 
     await this.prisma.product.delete({ where: { id } });
-    await this.media.remove([
-      ...product.images.flatMap((i) => [i.url, i.mediumUrl, i.thumbUrl]),
-      ...product.documents.map((d) => d.url),
-    ]);
+    await this.removeUnusedImageFiles(product.images);
+    await this.media.remove(product.documents.map((d) => d.url));
     this.cache.invalidate();
     await this.audit.log({
       actorId: actor.userId,
@@ -554,7 +561,7 @@ export class AdminProductsService {
         if (next) await tx.productImage.update({ where: { id: next.id }, data: { isMain: true } });
       }
     });
-    await this.media.remove([image.url, image.mediumUrl, image.thumbUrl]);
+    await this.removeUnusedImageFiles([image]);
     this.cache.invalidate();
     await this.audit.log({
       actorId: actor.userId,
@@ -565,6 +572,26 @@ export class AdminProductsService {
       changes: { imageId },
     });
     return this.images(id);
+  }
+
+  /**
+   * Rasm fayllarini o'chiradi — boshqa mahsulot ham ishlatmayotgan bo'lsa (katalog importida bitta
+   * rasm o'lchamlari bo'yicha bir nechta mahsulotga biriktiriladi). Yozuvlar avval o'chirilgan bo'ladi.
+   */
+  private async removeUnusedImageFiles(
+    images: Array<{ url: string; mediumUrl: string | null; thumbUrl: string | null }>,
+  ): Promise<void> {
+    if (images.length === 0) return;
+    const stillUsed = await this.prisma.productImage.findMany({
+      where: { url: { in: images.map((image) => image.url) } },
+      select: { url: true },
+    });
+    const used = new Set(stillUsed.map((image) => image.url));
+    await this.media.remove(
+      images
+        .filter((image) => !used.has(image.url))
+        .flatMap((image) => [image.url, image.mediumUrl, image.thumbUrl]),
+    );
   }
 
   private async images(productId: string): Promise<AdminProductImage[]> {

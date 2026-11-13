@@ -190,3 +190,31 @@ export interface DeleteResult {
   /** deleted — butunlay o'chirildi; archived — buyurtmalarda bor, arxivlandi */
   result: 'deleted' | 'archived';
 }
+
+// ─────────────────────────────── Katalog importi ───────────────────────────────
+
+export interface CatalogImportProductResult {
+  sku: string;
+  /** failed bo'lsa — null */
+  id: string | null;
+  status: 'created' | 'updated' | 'failed';
+  /** Mahsulotda rasm bormi (bo'lsa — importdagi rasm biriktirilmaydi) */
+  hasImages: boolean;
+  error?: string;
+}
+
+export interface CatalogImportBatchResult {
+  created: number;
+  updated: number;
+  failed: number;
+  products: CatalogImportProductResult[];
+  /** Masalan: noma'lum xususiyat kaliti e'tiborsiz qoldirildi */
+  warnings: string[];
+}
+
+export interface CatalogImportImageResult {
+  /** Rasm biriktirilgan mahsulotlar */
+  attached: number;
+  /** Rasmi bor yoki topilmagan mahsulotlar */
+  skipped: number;
+}

@@ -1,6 +1,8 @@
 import { Module } from '@nestjs/common';
 import { AuthModule } from '../auth/auth.module.js';
 import { AdminBrandsController } from './catalog/admin-brands.controller.js';
+import { AdminCatalogImportController } from './catalog/admin-catalog-import.controller.js';
+import { AdminCatalogImportService } from './catalog/admin-catalog-import.service.js';
 import { AdminBrandsService } from './catalog/admin-brands.service.js';
 import { AdminCategoriesController } from './catalog/admin-categories.controller.js';
 import { AdminCategoriesService } from './catalog/admin-categories.service.js';
@@ -35,6 +37,7 @@ import { AdminStatsService } from './stats/admin-stats.service.js';
     AdminProductGroupsController,
     AdminWarehousesController,
     AdminProductsController,
+    AdminCatalogImportController,
     AdminDiscountsController,
     AdminContentController,
     AdminOrdersController,
@@ -46,6 +49,7 @@ import { AdminStatsService } from './stats/admin-stats.service.js';
     AdminCategoriesService,
     AdminTaxonomyService,
     AdminProductsService,
+    AdminCatalogImportService,
     AdminDiscountsService,
     AdminContentService,
     AdminOrdersService,
